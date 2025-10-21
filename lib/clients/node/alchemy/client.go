@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type client struct {
+type alchemyClient struct {
 	networkName string
 	apiKey      string
 	baseURL     string
@@ -40,7 +40,7 @@ func NewAlchemyClient(cfg models.Provider, logger *logging.Logger) (node.Provide
 
 	logger.Infof("Successfully connected to Alchemy network: %s", cfg.NetworkName)
 
-	return &client{
+	return &alchemyClient{
 		networkName: cfg.NetworkName,
 		apiKey:      cfg.ApiKey,
 		baseURL:     cfg.BaseURL,
@@ -50,28 +50,28 @@ func NewAlchemyClient(cfg models.Provider, logger *logging.Logger) (node.Provide
 	}, nil
 }
 
-func (a *client) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
+func (a *alchemyClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
 	return a.ethClient.BlockByNumber(ctx, number)
 }
 
-func (a *client) BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) ([]*types.Receipt, error) {
+func (a *alchemyClient) BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) ([]*types.Receipt, error) {
 	return a.ethClient.BlockReceipts(ctx, blockNrOrHash)
 }
 
-func (a *client) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
+func (a *alchemyClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (ethereum.Subscription, error) {
 	return a.ethClient.SubscribeNewHead(ctx, ch)
 }
 
-func (a *client) BatchCallContext(ctx context.Context, batch []rpc.BatchElem) error {
+func (a *alchemyClient) BatchCallContext(ctx context.Context, batch []rpc.BatchElem) error {
 	return a.rpcClient.BatchCallContext(ctx, batch)
 }
 
-func (a *client) Close() {
+func (a *alchemyClient) Close() {
 	a.logger.Debugf("Closing Alchemy client connection for network: %s", a.networkName)
 	a.ethClient.Close()
 	a.rpcClient.Close()
 }
 
-func (a *client) Name() string {
+func (a *alchemyClient) Name() string {
 	return "alchemy"
 }
