@@ -1,0 +1,8 @@
+time="2025-10-22T22:38:14+03:00" level=info msg="Initializing Alchemy client for network: ETH_mainnet" func="lib/clients/node/alchemy.NewAlchemyClient()" file="client.go:28"
+time="2025-10-22T22:38:14+03:00" level=info msg="Successfully connected to Alchemy network: ETH_mainnet" func="lib/clients/node/alchemy.NewAlchemyClient()" file="client.go:41"
+time="2025-10-22T22:38:14+03:00" level=info msg="Successfully initialized provider: alchemy" func="main.main()" file="provider.go:26"
+time="2025-10-22T22:38:24+03:00" level=error msg="Failed to get latest block: Post \"https://eth-mainnet.g.alchemy.com/v2/bYiMENtDz_cHRTwZIkBiV\": dial tcp: lookup eth-mainnet.g.alchemy.com on 127.0.0.53:53: read udp 127.0.0.1:46766->127.0.0.53:53: i/o timeout" func="main.main()" file="provider.go:30"
+time="2025-10-22T22:38:33+03:00" level=info msg="Initializing Alchemy client for network: ETH_mainnet" func="lib/clients/node/alchemy.NewAlchemyClient()" file="client.go:28"
+time="2025-10-22T22:38:33+03:00" level=info msg="Successfully connected to Alchemy network: ETH_mainnet" func="lib/clients/node/alchemy.NewAlchemyClient()" file="client.go:41"
+time="2025-10-22T22:38:33+03:00" level=info msg="Successfully initialized provider: alchemy" func="main.main()" file="provider.go:26"
+time="2025-10-22T22:38:34+03:00" level=info msg="Latest block retrieved: 23635194" func="main.main()" file="provider.go:34"

@@ -1,0 +1,1 @@
+time="2025-10-22T22:38:24+03:00" level=error msg="Failed to get latest block: Post \"https://eth-mainnet.g.alchemy.com/v2/bYiMENtDz_cHRTwZIkBiV\": dial tcp: lookup eth-mainnet.g.alchemy.com on 127.0.0.53:53: read udp 127.0.0.1:46766->127.0.0.53:53: i/o timeout" func="main.main()" file="provider.go:30"
