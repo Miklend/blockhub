@@ -7,6 +7,7 @@ type Config struct {
 	Broker     `json:"broker"`
 	Clickhouse `json:"clickhouse"`
 	Redis      `json:"redis"`
+	PostgreSQL `json:"postgresql"`
 }
 
 type Provider struct {
@@ -26,6 +27,26 @@ type Broker struct {
 	Async        bool
 }
 
-type Clickhouse struct{}
+type Clickhouse struct {
+	Host     string `json:"host"`
+	Port     string `json:"port"`
+	Database string `json:"database"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
 
-type Redis struct{}
+type Redis struct {
+	Host     string `json:"host"`
+	Port     string `json:"port"`
+	Password string `json:"password"`
+	DB       int    `json:"db"`
+}
+
+type PostgreSQL struct {
+	Host     string `json:"host"`
+	Port     string `json:"port"`
+	Database string `json:"database"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	SSLMode  string `json:"ssl_mode"`
+}
