@@ -1,8 +1,8 @@
 package main
 
 import (
-	"blockhub/services/realtime-miner/internal/collector"
-	"blockhub/services/realtime-miner/internal/worker"
+	"blockhub/services/realtime-miner/internal/node/collector"
+	"blockhub/services/realtime-miner/internal/node/worker"
 	"context"
 	"fmt"
 	collectorLib "lib/blocks/collector"

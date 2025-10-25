@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"blockhub/services/realtime-miner/internal/node"
 	"context"
 	"encoding/json"
 	"lib/models"
@@ -9,7 +10,6 @@ import (
 
 	"lib/clients/broker"
 
-	"blockhub/services/realtime-miner/pkg"
 	"lib/utils/logging"
 )
 
@@ -24,7 +24,7 @@ type BlockTransfer struct {
 }
 
 // NewBlockTransfer создаёт новый worker для отправки блоков в Kafka
-func NewBlockTransfer(logger *logging.Logger, kafkaClient broker.BrokerClient) pkg.Worker {
+func NewBlockTransfer(logger *logging.Logger, kafkaClient broker.BrokerClient) node.Worker {
 	return &BlockTransfer{
 		Logger:      logger,
 		KafkaClient: kafkaClient,

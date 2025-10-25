@@ -1,8 +1,9 @@
 package collector
 
 import (
-	"blockhub/services/realtime-miner/pkg"
+	"blockhub/services/realtime-miner/internal/node"
 	"context"
+	collectorLib "lib/blocks/collector"
 	"lib/models"
 	"lib/utils/logging"
 	"math"
@@ -14,11 +15,11 @@ import (
 )
 
 type realtimeCollector struct {
-	bc     pkg.BlockCollectorInterface
+	bc     *collectorLib.BlockCollector
 	logger *logging.Logger
 }
 
-func NewRealtimeCollector(bc pkg.BlockCollectorInterface) pkg.RtCollector {
+func NewRealtimeCollector(bc *collectorLib.BlockCollector) node.RtCollector {
 	return &realtimeCollector{
 		bc:     bc,
 		logger: bc.Logger(),

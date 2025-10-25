@@ -55,26 +55,18 @@ func InitLogger(levelStr string) *Logger {
 			FullTimestamp: true,
 		})
 
-		err := os.MkdirAll("./logs", 0755)
-		if err != nil {
-			panic(fmt.Errorf("failed to create logs dir: %w", err))
-		}
+		// Не создаём директорию logs и не открываем файлы
 
-		allFile, _ := os.OpenFile("logs/all.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		errorFile, _ := os.OpenFile("logs/error.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-
+		// Отключаем стандартный вывод
 		l.SetOutput(io.Discard)
 
+		// Хук только на вывод в Stdout
 		l.AddHook(&writerHook{
-			Writer:    []io.Writer{allFile, os.Stdout},
+			Writer:    []io.Writer{os.Stdout},
 			Loglevels: logrus.AllLevels,
 		})
 
-		l.AddHook(&writerHook{
-			Writer:    []io.Writer{errorFile},
-			Loglevels: []logrus.Level{logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel},
-		})
-
+		// Устанавливаем уровень логирования
 		level, err := logrus.ParseLevel(strings.ToLower(levelStr))
 		if err != nil {
 			level = logrus.InfoLevel

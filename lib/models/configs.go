@@ -39,9 +39,22 @@ type Broker struct {
 	Async        bool          `yaml:"async"`
 }
 
-type Clickhouse struct{}
+type DB struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Database string
+	SSLMode  string
+}
 
-type Redis struct{}
+type Clickhouse struct {
+	DB
+}
+
+type Redis struct {
+	DB
+}
 
 // Константы, используемые для поиска конфига
 const (
