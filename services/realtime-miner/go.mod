@@ -18,3 +18,6 @@ require (
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 )
+module realtime-miner
+
+go 1.24.9
