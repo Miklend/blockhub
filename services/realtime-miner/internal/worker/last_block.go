@@ -16,7 +16,7 @@ const kafkaRetryDelay = 500 * time.Millisecond // Задержка между п
 
 type BlockTransfer struct {
 	Logger      *logging.Logger
-	KafkaClient MockKafkaClient
+	KafkaClient internal.MockKafkaClient
 }
 
 // NewBlockTransfer создаёт новый worker для отправки блоков в Kafka

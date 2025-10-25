@@ -2,6 +2,8 @@ package main
 
 import (
 	"blockhub/services/realtime-miner/internal"
+	"blockhub/services/realtime-miner/internal/collector"
+	"blockhub/services/realtime-miner/internal/worker"
 	"context"
 	fabricClient "lib/clients/fabric_client"
 	"lib/models"
@@ -52,10 +54,10 @@ func main() {
 	}()
 
 	// Инициализация BlockCollector
-	blockCollector := internal.NewBlockCollector(providerClient, logger)
+	blockCollector := worker.NewBlockCollector(providerClient, logger)
 
 	// Инициализация RealtimeCollector
-	realtimeCollector := internal.NewRealtimeCollector(blockCollector)
+	realtimeCollector := collector.NewRealtimeCollector(blockCollector)
 
 	// Подписка на новые блоки
 	blocksChan, err := realtimeCollector.SubscribeNewBlocks(ctx, maxRetries)
@@ -64,7 +66,7 @@ func main() {
 	}
 	logger.Info("Subscribed to new blocks, waiting for incoming data...")
 
-	blockTransfer := internal.NewBlockTransfer(logger, *internal.NewMockKafkaClient(*logger)).(*internal.BlockTransfer)
+	blockTransfer := worker.NewBlockTransfer(logger, *internal.NewMockKafkaClient(*logger)).(*worker.BlockTransfer)
 
 	go blockTransfer.TransferBlocks(ctx, blocksChan)
 	// Ждем завершения по сигналу
