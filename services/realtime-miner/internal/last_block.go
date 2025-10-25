@@ -1,13 +1,13 @@
-package worker
+package internal
 
 import (
 	"context"
 	"encoding/json"
+	"lib/models"
 	"os"
 	"time"
 
-	clientKafka "lib/clients/broker/kafka"
-	"lib/models"
+	"blockhub/services/realtime-miner/pkg"
 	"lib/utils/logging"
 )
 
@@ -16,11 +16,11 @@ const kafkaRetryDelay = 500 * time.Millisecond // Задержка между п
 
 type BlockTransfer struct {
 	Logger      *logging.Logger
-	KafkaClient clientKafka.MockKafkaClient
+	KafkaClient MockKafkaClient
 }
 
 // NewBlockTransfer создаёт новый worker для отправки блоков в Kafka
-func NewBlockTransfer(logger *logging.Logger, kafkaClient clientKafka.MockKafkaClient) models.Worker {
+func NewBlockTransfer(logger *logging.Logger, kafkaClient MockKafkaClient) pkg.Worker {
 	return &BlockTransfer{
 		Logger:      logger,
 		KafkaClient: kafkaClient,
@@ -28,17 +28,17 @@ func NewBlockTransfer(logger *logging.Logger, kafkaClient clientKafka.MockKafkaC
 }
 
 // TransferBlocks слушает канал передачи блоков и отправляет их в Kafka
-func (bt *BlockTransfer) TransferBlocks(ctx context.Context, in <-chan *models.Block) {
+func (bt *BlockTransfer) TransferBlocks(ctx context.Context, in <-chan *models.Block) error {
 	for {
 		select {
 		case <-ctx.Done():
 			bt.Logger.Infof("block transfer stopped")
-			return
+			return nil
 
 		case block, ok := <-in:
 			if !ok {
 				bt.Logger.Warnf("block channel closed")
-				return
+				return nil
 			}
 
 			//Сериализация блока в JSON

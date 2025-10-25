@@ -1,1 +1,73 @@
 package main
+
+import (
+	"blockhub/services/realtime-miner/internal"
+	"context"
+	fabricClient "lib/clients/fabric_client"
+	"lib/models"
+	"lib/utils/logging"
+	"os/signal"
+	"syscall"
+)
+
+func main() {
+	// Инициализация логгера
+	logger := logging.GetLogger()
+	logger.Info("Logger initialized successfully")
+
+	// Загрузка конфигурации
+	cfg := models.GetConfig(logger)
+	if cfg.ProviderRealTime.ApiKey == "" {
+		logger.Errorf("REALTIME_API_KEY is empty")
+		return
+	} else {
+		logger.Infof("REALTIME_API_KEY found")
+	}
+
+	// Создаем контекст с отменой и автоматической подпиской на сигналы
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	// Инициализация Alchemy клиента
+	ProviderConfig := models.Provider{
+		ProviderType: "alchemy",
+		BaseURL:      cfg.ProviderRealTime.BaseURL,
+		NetworkName:  cfg.ProviderRealTime.NetworkName,
+		ApiKey:       cfg.ProviderRealTime.ApiKey,
+	}
+
+	maxRetries := cfg.ProviderRealTime.MaxRetries
+	providerClient, err := fabricClient.NewProvider(ProviderConfig, logger)
+	if err != nil {
+		logger.Errorf("Failed to create provider Client: %v", err)
+	}
+	defer providerClient.Close()
+
+	// Инициализация Kafka клиента
+	kafkaClient := internal.NewMockKafkaClient(*logger)
+	defer func() {
+		if err := kafkaClient.Close(); err != nil {
+			logger.Errorf("Failed to close Kafka client: %v", err)
+		}
+	}()
+
+	// Инициализация BlockCollector
+	blockCollector := internal.NewBlockCollector(providerClient, logger)
+
+	// Инициализация RealtimeCollector
+	realtimeCollector := internal.NewRealtimeCollector(blockCollector)
+
+	// Подписка на новые блоки
+	blocksChan, err := realtimeCollector.SubscribeNewBlocks(ctx, maxRetries)
+	if err != nil {
+		logger.Fatalf("Failed to subscribe to new blocks: %v", err)
+	}
+	logger.Info("Subscribed to new blocks, waiting for incoming data...")
+
+	blockTransfer := internal.NewBlockTransfer(logger, *internal.NewMockKafkaClient(*logger)).(*internal.BlockTransfer)
+
+	go blockTransfer.TransferBlocks(ctx, blocksChan)
+	// Ждем завершения по сигналу
+	<-ctx.Done()
+	logger.Info("Shutdown signal received, stopping services...")
+}
