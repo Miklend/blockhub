@@ -33,7 +33,7 @@ func NewKafkaBroker(cfg models.Broker, logger *logging.Logger) broker.BrokerClie
 }
 
 // SendMessage отправляет одно сообщение
-func (k *KafkaBroker) SendMessage(ctx context.Context, msg models.Message) error {
+func (k *KafkaBroker) SendMessage(ctx context.Context, msg models.MessageBroker) error {
 	writer := k.getWriter(msg.Topic)
 
 	kafkaMsg := kafka.Message{
@@ -54,7 +54,7 @@ func (k *KafkaBroker) SendMessage(ctx context.Context, msg models.Message) error
 }
 
 // SendMessages отправляет несколько сообщений
-func (k *KafkaBroker) SendMessages(ctx context.Context, msgs []models.Message) error {
+func (k *KafkaBroker) SendMessages(ctx context.Context, msgs []models.MessageBroker) error {
 	if len(msgs) == 0 {
 		return nil
 	}
@@ -83,7 +83,7 @@ func (k *KafkaBroker) SendMessages(ctx context.Context, msgs []models.Message) e
 }
 
 // Subscribe подписывается на топик без consumer group
-func (k *KafkaBroker) Subscribe(ctx context.Context, topic string, handler models.MessageHandler) error {
+func (k *KafkaBroker) Subscribe(ctx context.Context, topic string, handler models.MessageHandlerBroker) error {
 	reader := k.getReader(topic, "")
 
 	go k.consumeLoop(ctx, reader, handler)
@@ -91,7 +91,7 @@ func (k *KafkaBroker) Subscribe(ctx context.Context, topic string, handler model
 }
 
 // SubscribeWithGroup подписывается на топик с consumer group
-func (k *KafkaBroker) SubscribeWithGroup(ctx context.Context, topic, groupID string, handler models.MessageHandler) error {
+func (k *KafkaBroker) SubscribeWithGroup(ctx context.Context, topic, groupID string, handler models.MessageHandlerBroker) error {
 	reader := k.getReader(topic, groupID)
 
 	go k.consumeLoop(ctx, reader, handler)
@@ -193,7 +193,7 @@ func (k *KafkaBroker) getReader(topic, groupID string) *kafka.Reader {
 	return reader
 }
 
-func (k *KafkaBroker) consumeLoop(ctx context.Context, reader *kafka.Reader, handler models.MessageHandler) {
+func (k *KafkaBroker) consumeLoop(ctx context.Context, reader *kafka.Reader, handler models.MessageHandlerBroker) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -205,7 +205,7 @@ func (k *KafkaBroker) consumeLoop(ctx context.Context, reader *kafka.Reader, han
 				continue
 			}
 
-			msg := models.Message{
+			msg := models.MessageBroker{
 				Key:     kafkaMsg.Key,
 				Value:   kafkaMsg.Value,
 				Topic:   kafkaMsg.Topic,

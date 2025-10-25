@@ -1,10 +1,11 @@
 package main
 
 import (
-	"blockhub/services/realtime-miner/internal"
 	"blockhub/services/realtime-miner/internal/collector"
 	"blockhub/services/realtime-miner/internal/worker"
 	"context"
+	"fmt"
+	collectorLib "lib/blocks/collector"
 	fabricClient "lib/clients/fabric_client"
 	"lib/models"
 	"lib/utils/logging"
@@ -26,13 +27,15 @@ func main() {
 		logger.Infof("REALTIME_API_KEY found")
 	}
 
+	fmt.Println(cfg.Broker.BrockerType)
+
 	// Создаем контекст с отменой и автоматической подпиской на сигналы
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	// Инициализация Alchemy клиента
 	ProviderConfig := models.Provider{
-		ProviderType: "alchemy",
+		ProviderType: cfg.ProviderRealTime.ProviderType,
 		BaseURL:      cfg.ProviderRealTime.BaseURL,
 		NetworkName:  cfg.ProviderRealTime.NetworkName,
 		ApiKey:       cfg.ProviderRealTime.ApiKey,
@@ -46,15 +49,15 @@ func main() {
 	defer providerClient.Close()
 
 	// Инициализация Kafka клиента
-	kafkaClient := internal.NewMockKafkaClient(*logger)
+	brockerClient := fabricClient.NewBroker(cfg.Broker, logger)
 	defer func() {
-		if err := kafkaClient.Close(); err != nil {
+		if err := brockerClient.Close(); err != nil {
 			logger.Errorf("Failed to close Kafka client: %v", err)
 		}
 	}()
 
 	// Инициализация BlockCollector
-	blockCollector := worker.NewBlockCollector(providerClient, logger)
+	blockCollector := collectorLib.NewBlockCollector(providerClient, logger)
 
 	// Инициализация RealtimeCollector
 	realtimeCollector := collector.NewRealtimeCollector(blockCollector)
@@ -66,7 +69,7 @@ func main() {
 	}
 	logger.Info("Subscribed to new blocks, waiting for incoming data...")
 
-	blockTransfer := worker.NewBlockTransfer(logger, *internal.NewMockKafkaClient(*logger)).(*worker.BlockTransfer)
+	blockTransfer := worker.NewBlockTransfer(logger, brockerClient).(*worker.BlockTransfer)
 
 	go blockTransfer.TransferBlocks(ctx, blocksChan)
 	// Ждем завершения по сигналу

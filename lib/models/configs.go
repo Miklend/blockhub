@@ -74,7 +74,26 @@ func GetConfig(logger *logging.Logger) *Config {
 
 		// 3. Если путь не указан нигде, устанавливаем путь по умолчанию
 		if configPath == "" {
-			configPath = "configs/config.yaml" // Самый распространенный путь по умолчанию
+			// Пробуем разные возможные пути
+			possiblePaths := []string{
+				"./configs/configs.yaml",     // для realtime-miner
+				"./configs/config.yaml",      // общий путь
+				"../configs/configs.yaml",    // если запускаем из cmd/
+				"../../configs/configs.yaml", // если запускаем из глубоких папок
+			}
+
+			for _, path := range possiblePaths {
+				if _, err := os.Stat(path); err == nil {
+					configPath = path
+					logger.Debugf("Found config at: %s", path)
+					break
+				}
+			}
+
+			// Если ни один путь не найден, используем первый по умолчанию
+			if configPath == "" {
+				configPath = "./configs/configs.yaml"
+			}
 		}
 
 		instance = &Config{}

@@ -1,4 +1,4 @@
-package internal
+package collector
 
 import (
 	"blockhub/services/realtime-miner/pkg"

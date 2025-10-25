@@ -1,4 +1,4 @@
-package internal
+package worker
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"lib/clients/broker"
+
 	"blockhub/services/realtime-miner/pkg"
 	"lib/utils/logging"
 )
@@ -14,13 +16,15 @@ import (
 const maxKafkaRetries = 3                      // Максимальное количество попыток отправки
 const kafkaRetryDelay = 500 * time.Millisecond // Задержка между попытками
 
+const topicKafka = "blocks"
+
 type BlockTransfer struct {
 	Logger      *logging.Logger
-	KafkaClient internal.MockKafkaClient
+	KafkaClient broker.BrokerClient
 }
 
 // NewBlockTransfer создаёт новый worker для отправки блоков в Kafka
-func NewBlockTransfer(logger *logging.Logger, kafkaClient MockKafkaClient) pkg.Worker {
+func NewBlockTransfer(logger *logging.Logger, kafkaClient broker.BrokerClient) pkg.Worker {
 	return &BlockTransfer{
 		Logger:      logger,
 		KafkaClient: kafkaClient,
@@ -41,7 +45,7 @@ func (bt *BlockTransfer) TransferBlocks(ctx context.Context, in <-chan *models.B
 				return nil
 			}
 
-			//Сериализация блока в JSON
+			// Сериализация блока в JSON
 			data, err := json.Marshal(block)
 			if err != nil {
 				bt.Logger.Errorf("failed to serialize block %s: %v", block.Hash, err)
@@ -59,36 +63,43 @@ func (bt *BlockTransfer) TransferBlocks(ctx context.Context, in <-chan *models.B
 				continue
 			}
 
-			//Отправка в Kafka с повторными попытками
-			bt.sendWithRetry(ctx, block.Hash, data)
+			// Создаем сообщение для брокера
+			m := models.MessageBroker{
+				Key:   []byte(block.Hash),
+				Value: data,       // Используем сериализованные данные
+				Topic: topicKafka, // Указываем топик
+			}
+
+			// Отправка в Kafka с повторными попытками
+			bt.sendWithRetry(ctx, m)
 		}
 	}
 }
 
-// повторные попытки
-func (bt *BlockTransfer) sendWithRetry(ctx context.Context, key string, data []byte) {
+// sendWithRetry повторные попытки отправки
+func (bt *BlockTransfer) sendWithRetry(ctx context.Context, m models.MessageBroker) {
 	var err error
 
 	for attempt := 1; attempt <= maxKafkaRetries; attempt++ {
-
-		// Отправка в Kafka(сейчас в симулированный)
-		err = bt.KafkaClient.SendMessage(key, data)
+		// Отправка в Kafka
+		err = bt.KafkaClient.SendMessage(ctx, m)
 
 		if err == nil {
-			bt.Logger.Infof("Block %s sent to Kafka successfully (attempt %d)", key, attempt)
+			bt.Logger.Infof("Block %s sent to Kafka successfully (attempt %d)", string(m.Key), attempt)
 			return
 		}
 
-		bt.Logger.Warnf("Failed to send block %s to Kafka (attempt %d/%d): %v", key, attempt, maxKafkaRetries, err)
+		bt.Logger.Warnf("Failed to send block %s to Kafka (attempt %d/%d): %v", string(m.Key), attempt, maxKafkaRetries, err)
 
 		if attempt < maxKafkaRetries {
 			select {
 			case <-ctx.Done():
-				bt.Logger.Warnf("Context cancelled during Kafka retry for block %s", key)
+				bt.Logger.Warnf("Context cancelled during Kafka retry for block %s", string(m.Key))
 				return
 			case <-time.After(kafkaRetryDelay):
+				// Ждем перед следующей попыткой
 			}
 		}
 	}
-	bt.Logger.Errorf("FATAL: Failed to send block %s to Kafka after %d attempts. DROPPING MESSAGE.", key, maxKafkaRetries)
+	bt.Logger.Errorf("FATAL: Failed to send block %s to Kafka after %d attempts. DROPPING MESSAGE.", string(m.Key), maxKafkaRetries)
 }

@@ -8,15 +8,18 @@ import (
 )
 
 const (
-	KafkaBrokerType = "kafka"
+	kafkaBrokerType = "kafka"
+	mock            = "mock"
 	// Можно добавить другие типы: RabbitMQBrokerType, NATSBrokerType и т.д.
 )
 
 // NewBroker создает брокер указанного типа
 func NewBroker(cfg models.Broker, logger *logging.Logger) broker.BrokerClient {
 	switch cfg.BrockerType {
-	case KafkaBrokerType:
+	case kafkaBrokerType:
 		return kafka.NewKafkaBroker(cfg, logger)
+	case mock:
+		return broker.NewMockBrokerClient()
 	default:
 		return nil
 	}

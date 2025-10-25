@@ -21,10 +21,9 @@ provider_realtime:
   provider_type: "alchemy" 
   network_name: "ethereum"
   base_url: "wss://eth-mainnet.g.alchemy.com/v2/" 
-  api_key: "bYiMENtDz_cHRTwZIkBiV"
+  api_key: "Uzb0sDJmjCuvs21_OyLbn"
   limiter: 25
   max_retries: 5
 
-kafka:
-  topic: "eth-blocks"
-  broker: ""
+broker:
+  brocker_type: "mock"
