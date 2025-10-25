@@ -9,12 +9,12 @@ import (
 )
 
 const (
-	Alchemy = "alchemy"
+	alchemyType = "alchemy"
 )
 
 func NewProvaider(cfg models.Provider, logger *logging.Logger) (node.Provider, error) {
 	switch cfg.ProvaiderType {
-	case Alchemy:
+	case alchemyType:
 		return alchemy.NewAlchemyClient(cfg, logger)
 	default:
 		return nil, fmt.Errorf("not found provaider client")

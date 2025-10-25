@@ -14,6 +14,7 @@ import (
 // KafkaBroker реализация Broker для Apache Kafka
 type KafkaBroker struct {
 	config  models.Broker
+	logger  *logging.Logger
 	writers map[string]*kafka.Writer
 	readers map[string]*kafka.Reader
 	admin   *kafka.Client
@@ -24,6 +25,7 @@ func NewKafkaBroker(cfg models.Broker, logger *logging.Logger) broker.BrokerClie
 
 	return &KafkaBroker{
 		config:  cfg,
+		logger:  logger,
 		writers: make(map[string]*kafka.Writer),
 		readers: make(map[string]*kafka.Reader),
 		admin: &kafka.Client{

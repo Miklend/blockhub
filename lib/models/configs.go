@@ -10,7 +10,7 @@ type Config struct {
 }
 
 type Provider struct {
-	ProvaiderType string
+	ProvaiderType string `json:"provaider_type"`
 	NetworkName   string `json:"network_name"`
 	BaseURL       string `json:"base_url"`
 	ApiKey        string `json:"api_key"`
