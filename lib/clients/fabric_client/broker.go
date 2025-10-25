@@ -1,7 +1,6 @@
 package fabricClient
 
 import (
-	"fmt"
 	"lib/clients/broker"
 	"lib/clients/broker/kafka"
 	"lib/models"
@@ -10,15 +9,18 @@ import (
 
 const (
 	kafkaBrokerType = "kafka"
+	mock            = "mock"
 	// Можно добавить другие типы: RabbitMQBrokerType, NATSBrokerType и т.д.
 )
 
 // NewBroker создает брокер указанного типа
-func NewBroker(cfg models.Broker, logger *logging.Logger) (broker.BrokerClient, error) {
+func NewBroker(cfg models.Broker, logger *logging.Logger) broker.BrokerClient {
 	switch cfg.BrockerType {
 	case kafkaBrokerType:
-		return kafka.NewKafkaBroker(cfg, logger), nil
+		return kafka.NewKafkaBroker(cfg, logger)
+	case mock:
+		return broker.NewMockBrokerClient()
 	default:
-		return nil, fmt.Errorf("not found broker client")
+		return nil
 	}
 }
