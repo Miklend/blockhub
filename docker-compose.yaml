@@ -1,0 +1,122 @@
+services:
+  # Инфраструктура (оставляем как есть)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "29092:29092"
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      CLICKHOUSE_DB: blockchain
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  api-service:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile.dev
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_BROKERS: "kafka:9092"
+      CLICKHOUSE_HOST: "clickhouse:9000"
+      REDIS_HOST: "redis:6379"
+    volumes:
+      - ./:/workspace  # Монтируем ВЕСЬ проект
+    working_dir: /workspace/services/api  # Рабочая директория сервиса
+    depends_on:
+      - kafka
+      - clickhouse
+      - redis
+    command: ["air", "-c", ".air.toml"]
+
+  clickhouse-service:
+    build:
+      context: .
+      dockerfile: services/clickhouse-service/Dockerfile.dev
+    environment:
+      KAFKA_BROKERS: "kafka:9092"
+      CLICKHOUSE_HOST: "clickhouse:9000"
+    volumes:
+      - ./:/workspace
+    working_dir: /workspace/services/clickhouse-service
+    depends_on:
+      - kafka
+      - clickhouse
+    command: ["air", "-c", ".air.toml"]
+
+  historical-miner:
+    build:
+      context: .
+      dockerfile: services/historical-miner/Dockerfile.dev
+    environment:
+      KAFKA_BROKERS: "kafka:9092"
+      CLICKHOUSE_HOST: "clickhouse:9000"
+    volumes:
+      - ./:/workspace
+    working_dir: /workspace/services/historical-miner
+    depends_on:
+      - kafka
+      - clickhouse
+    command: ["air", "-c", ".air.toml"]
+
+  realtime-miner:
+    build:
+      context: .
+      dockerfile: services/realtime-miner/Dockerfile.dev
+    environment:
+      KAFKA_BROKERS: "kafka:9092"
+      CLICKHOUSE_HOST: "clickhouse:9000"
+      REDIS_HOST: "redis:6379"
+    volumes:
+      - ./:/workspace
+    working_dir: /workspace/services/realtime-miner
+    depends_on:
+      - kafka
+      - clickhouse
+      - redis
+    command: ["air", "-c", ".air.toml"]
+
+  redis-service:
+    build:
+      context: .
+      dockerfile: services/redis-service/Dockerfile.dev
+    environment:
+      REDIS_HOST: "redis:6379"
+      KAFKA_BROKERS: "kafka:9092"
+    volumes:
+      - ./:/workspace
+    working_dir: /workspace/services/redis-service
+    depends_on:
+      - redis
+      - kafka
+    command: ["air", "-c", ".air.toml"]
+
+volumes:
+  clickhouse_data:
+  redis_data:
