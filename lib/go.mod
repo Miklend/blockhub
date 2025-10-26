@@ -6,7 +6,9 @@ toolchain go1.24.9
 
 require (
 	github.com/ethereum/go-ethereum v1.16.4
+	github.com/go-redis/redis v6.15.9+incompatible // indirect
 	github.com/joho/godotenv v1.5.1
+	github.com/redis/go-redis/v9 v9.7.0
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/sirupsen/logrus v1.9.3
 )
