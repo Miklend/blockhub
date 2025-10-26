@@ -1,4 +1,4 @@
-package db
+package clientsDB
 
 import (
 	"context"
