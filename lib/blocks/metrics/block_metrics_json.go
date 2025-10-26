@@ -124,6 +124,7 @@ func decodeToHex(v interface{}) string {
 
 func convertReceiptJSON(r map[string]interface{}) *models.Receipt {
 	rec := &models.Receipt{
+		TxHash:            parseString(r["transactionHash"]),
 		ContractAddress:   parseString(r["contractAddress"]),
 		CumulativeGasUsed: parseUint64(r["cumulativeGasUsed"]),
 		EffectiveGasPrice: parseString(r["effectiveGasPrice"]),

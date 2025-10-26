@@ -26,6 +26,7 @@ type Block struct {
 
 // Транзакция (eth_getTransactionByHash / eth_getBlockBy*)
 type Tx struct {
+	BlockHash            string   `json:"blockHash,omitempty"`
 	From                 string   `json:"from"`
 	Gas                  uint64   `json:"gas"`
 	GasPrice             string   `json:"gasPrice"`
@@ -47,6 +48,7 @@ type Tx struct {
 
 // Квитанция (eth_getTransactionReceipt / eth_getBlockReceipt)
 type Receipt struct {
+	TxHash            string `json:"transactionHash"`
 	ContractAddress   string `json:"contractAddress,omitempty"`
 	CumulativeGasUsed uint64 `json:"cumulativeGasUsed"`
 	EffectiveGasPrice string `json:"effectiveGasPrice"`
@@ -61,6 +63,7 @@ type Receipt struct {
 
 // Лог (event Log)
 type Log struct {
+	BlockHash       string   `json:"blockHash,omitempty"`
 	Address         string   `json:"address"`
 	Topics          []string `json:"topics"`
 	Data            string   `json:"data"`

@@ -68,6 +68,7 @@ func NewTxs(txs types.Transactions, receipts []*types.Receipt) []models.Tx {
 		}
 
 		result = append(result, models.Tx{
+			BlockHash:            receipt.BlockHash.Hex(),
 			From:                 from.Hex(),
 			Gas:                  tx.Gas(),
 			GasPrice:             bigIntToString(tx.GasPrice()),
@@ -98,6 +99,7 @@ func NewReceipt(receipt *types.Receipt) *models.Receipt {
 	}
 
 	return &models.Receipt{
+		TxHash:            receipt.TxHash.Hex(),
 		ContractAddress:   receipt.ContractAddress.Hex(),
 		CumulativeGasUsed: receipt.CumulativeGasUsed,
 		EffectiveGasPrice: bigIntToString(receipt.EffectiveGasPrice),
@@ -118,6 +120,7 @@ func NewLogs(logs []*types.Log) []models.Log {
 	result := make([]models.Log, len(logs))
 	for i, l := range logs {
 		result[i] = models.Log{
+			BlockHash:       l.BlockHash.Hex(),
 			Address:         l.Address.Hex(),
 			Topics:          topicsToStrings(l.Topics),
 			Data:            common.Bytes2Hex(l.Data),

@@ -1,7 +1,7 @@
 package clickhouseRepo
 
 import (
-	"clickhouse-service/internal/db"
+	"clickhouse-service/internal/repository"
 	clientsDB "lib/clients/db"
 	"lib/utils/logging"
 )
@@ -11,7 +11,7 @@ type ClickhouseRepo struct {
 	logger *logging.Logger
 }
 
-func NewClickhouseService(client clientsDB.ClickhouseClient, logger *logging.Logger) db.DB {
+func NewClickhouseService(client clientsDB.ClickhouseClient, logger *logging.Logger) repository.Storage {
 	return &ClickhouseRepo{
 		client: client,
 		logger: logger,
