@@ -42,7 +42,7 @@ type Broker struct {
 type DB struct {
 	Host     string
 	Port     int
-	User     string
+	Username string
 	Password string
 	Database string
 	SSLMode  string
