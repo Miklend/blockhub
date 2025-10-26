@@ -1,4 +1,4 @@
-package clickhouse
+package clickhouseRepo
 
 import (
 	"clickhouse-service/internal/db"
@@ -6,18 +6,18 @@ import (
 	"lib/utils/logging"
 )
 
-type clickhouseClient struct {
+type ClickhouseRepo struct {
 	client clientsDB.ClickhouseClient
 	logger *logging.Logger
 }
 
 func NewClickhouseService(client clientsDB.ClickhouseClient, logger *logging.Logger) db.DB {
-	return &clickhouseClient{
+	return &ClickhouseRepo{
 		client: client,
 		logger: logger,
 	}
 }
 
-func (c *clickhouseClient) Close() error {
+func (c *ClickhouseRepo) Close() error {
 	return c.client.Close()
 }
