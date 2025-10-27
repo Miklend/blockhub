@@ -138,20 +138,20 @@ func convertReceiptToClickHouseRow(receipt models.Receipt, txHash string, txInde
 	effectiveGasPrice, _ := parseHexToUint64(receipt.EffectiveGasPrice)
 
 	return []interface{}{
-		txHash,                    // transaction_hash
-		txIndex,                   // transaction_index
-		blockHash,                 // block_hash
-		blockNumber,               // block_number
-		receipt.From,              // from
-		to,                        // to
-		contractAddress,           // contract_address
-		receipt.CumulativeGasUsed, // cumulative_gas_used
-		receipt.GasUsed,           // gas_used
-		effectiveGasPrice,         // effective_gas_price
-		uint8(receipt.Status),     // status
-		receipt.LogsBloom,         // logs_bloom
-		timestamp,                 // block_timestamp
-		timestamp,                 // date (MATERIALIZED)
+		txHash,                    // transaction_hash FixedString(66)
+		txIndex,                   // transaction_index UInt32
+		blockHash,                 // block_hash FixedString(66)
+		blockNumber,               // block_number UInt64
+		receipt.From,              // from FixedString(42)
+		to,                        // to Nullable(FixedString(42))
+		contractAddress,           // contract_address Nullable(FixedString(42))
+		receipt.CumulativeGasUsed, // cumulative_gas_used UInt64
+		receipt.GasUsed,           // gas_used UInt64
+		effectiveGasPrice,         // effective_gas_price UInt64
+		uint8(receipt.Status),     // status UInt8
+		receipt.LogsBloom,         // logs_bloom String
+		timestamp,                 // block_timestamp DateTime64(3, 'UTC')
+		// date автоматически вычисляется из block_timestamp
 	}
 }
 
