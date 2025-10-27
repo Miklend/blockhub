@@ -38,7 +38,7 @@ func (bc *BlockCollector) PostBatch(ctx context.Context, blocks []uint64) ([]mod
 	bc.logger.Infof("sending batch request for %d blocks", len(blocks))
 
 	// Отправляем батч запрос
-	if err := bc.client.BatchCallContext(ctx, batch); err != nil {
+	if err := bc.Client().BatchCallContext(ctx, batch); err != nil {
 		bc.logger.Errorf("batch request failed: %v", err)
 		return nil, fmt.Errorf("batch call failed: %w", err)
 	}

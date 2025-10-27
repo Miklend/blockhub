@@ -24,6 +24,7 @@ type Provider struct {
 	NetworkName  string `yaml:"network_name"`
 	BaseURL      string `yaml:"base_url"`
 	ApiKey       string `yaml:"api_key"`
+	NumClients   int    `yaml:"num_clients"`
 
 	Limiter    int `yaml:"limiter"`
 	MaxRetries int `yaml:"max_retries"`

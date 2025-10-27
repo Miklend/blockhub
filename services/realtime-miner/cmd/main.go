@@ -7,6 +7,7 @@ import (
 	"fmt"
 	collectorLib "lib/blocks/collector"
 	fabricClient "lib/clients/fabric_client"
+	"lib/clients/node"
 	"lib/models"
 	"lib/utils/logging"
 	"os/signal"
@@ -56,8 +57,10 @@ func main() {
 		}
 	}()
 
+	clientsPool := []node.Provider{providerClient}
+
 	// Инициализация BlockCollector
-	blockCollector := collectorLib.NewBlockCollector(providerClient, logger)
+	blockCollector := collectorLib.NewBlockCollector(clientsPool, logger)
 
 	// Инициализация RealtimeCollector
 	realtimeCollector := collector.NewRealtimeCollector(blockCollector)

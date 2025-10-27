@@ -17,7 +17,7 @@ func (bc *BlockCollector) CollectBlockByNumber(ctx context.Context, blockNumber 
 
 	// Fetch block data
 	blockFetchStart := time.Now()
-	block, err := bc.client.BlockByNumber(ctx, big.NewInt(int64(blockNumber)))
+	block, err := bc.Client().BlockByNumber(ctx, big.NewInt(int64(blockNumber)))
 	if err != nil {
 		bc.logger.Errorf("Failed to fetch block %d from network: %v", blockNumber, err)
 		return nil, fmt.Errorf("failed to fetch block %d: %w", blockNumber, err)
@@ -30,7 +30,7 @@ func (bc *BlockCollector) CollectBlockByNumber(ctx context.Context, blockNumber 
 	// Fetch receipts
 	receiptsFetchStart := time.Now()
 	blockNrOrHash := rpc.BlockNumberOrHashWithHash(block.Hash(), false)
-	receipts, err := bc.client.BlockReceipts(ctx, blockNrOrHash)
+	receipts, err := bc.Client().BlockReceipts(ctx, blockNrOrHash)
 	if err != nil {
 		bc.logger.Errorf("Failed to fetch receipts for block %d (hash: %s): %v",
 			blockNumber, block.Hash().Hex(), err)
