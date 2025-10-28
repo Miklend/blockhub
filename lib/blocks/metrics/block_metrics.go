@@ -3,154 +3,181 @@ package metrics
 import (
 	"lib/models"
 	"log"
-	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// NewBlockMetrics преобразует блок и квитанции из go-ethereum в нашу структуру models.Block
+// NewBlockMetrics преобразует блок и квитанции из go-ethereum в models.Block (JSON-safe)
 func NewBlockMetrics(block *types.Block, receipts []*types.Receipt) models.Block {
 	if block == nil {
 		return models.Block{}
 	}
 
-	// Преобразуем uncle хэши в строки
 	uncles := make([]string, len(block.Uncles()))
 	for i, u := range block.Uncles() {
 		uncles[i] = u.Hash().Hex()
 	}
 
-	return models.Block{
-		BaseFeePerGas:    bigIntToString(block.BaseFee()),
-		Difficulty:       bigIntToString(block.Difficulty()),
-		ExtraData:        string(block.Extra()),
-		GasLimit:         block.GasLimit(),
-		GasUsed:          block.GasUsed(),
+	var baseFee *uint
+	if block.BaseFee() != nil {
+		val := uint(block.BaseFee().Uint64())
+		baseFee = &val
+	}
+
+	timestamp := time.Unix(int64(block.Time()), 0).UTC()
+
+	blk := models.Block{
 		Hash:             block.Hash().Hex(),
-		LogsBloom:        common.Bytes2Hex(block.Bloom().Bytes()),
-		Miner:            block.Coinbase().Hex(),
-		MixHash:          block.MixDigest().Hex(),
-		Nonce:            block.Nonce(),
-		Number:           block.NumberU64(),
+		Number:           uint(block.NumberU64()),
 		ParentHash:       block.ParentHash().Hex(),
-		ReceiptsRoot:     block.ReceiptHash().Hex(),
+		Nonce:            uint(block.Nonce()),
 		Sha3Uncles:       block.UncleHash().Hex(),
-		Size:             block.Size(),
-		StateRoot:        block.Root().Hex(),
-		Timestamp:        block.Time(),
-		Transactions:     NewTxs(block.Transactions(), receipts),
+		LogsBloom:        "0x" + common.Bytes2Hex(block.Bloom().Bytes()),
 		TransactionsRoot: block.TxHash().Hex(),
+		StateRoot:        block.Root().Hex(),
+		ReceiptsRoot:     block.ReceiptHash().Hex(),
+		Miner:            block.Coinbase().Hex(),
+		Difficulty:       block.Difficulty().String(),
+		TotalDifficulty:  "", // если ты её не считаешь — можно позже добавить
+		Size:             uint(block.Size()),
+		ExtraData:        "0x" + common.Bytes2Hex(block.Extra()),
+		GasLimit:         uint(block.GasLimit()),
+		GasUsed:          uint(block.GasUsed()),
+		BaseFeePerGas:    baseFee,
+		Timestamp:        timestamp,
+		MixHash:          block.MixDigest().Hex(),
+		Transactions:     make([]string, 0, len(block.Transactions())),
 		Uncles:           uncles,
 	}
-}
 
-// NewTxs преобразует транзакции и их квитанции
-func NewTxs(txs types.Transactions, receipts []*types.Receipt) []models.Tx {
-	if txs == nil {
-		return nil
-	}
-
-	result := make([]models.Tx, 0, len(txs))
-	for i, tx := range txs {
+	// Транзакции
+	for i, tx := range block.Transactions() {
 		var receipt *types.Receipt
 		if i < len(receipts) {
 			receipt = receipts[i]
 		}
 
-		v, r, s := tx.RawSignatureValues()
-
-		from := getTxSender(tx)
-
-		var chainID string
-		if tx.ChainId() != nil {
-			chainID = tx.ChainId().String()
-		}
-
-		result = append(result, models.Tx{
-			From:                 from.Hex(),
-			Gas:                  tx.Gas(),
-			GasPrice:             bigIntToString(tx.GasPrice()),
-			MaxFeePerGas:         bigIntToString(tx.GasFeeCap()),
-			MaxPriorityFeePerGas: bigIntToString(tx.GasTipCap()),
-			Hash:                 tx.Hash().Hex(),
-			Input:                common.Bytes2Hex(tx.Data()),
-			Nonce:                tx.Nonce(),
-			To:                   addressToString(tx.To()),
-			TransactionIndex:     uint64(i),
-			Value:                bigIntToString(tx.Value()),
-			Type:                 tx.Type(),
-			ChainID:              chainID,
-			V:                    v.String(),
-			R:                    r.String(),
-			S:                    s.String(),
-			Receipt:              NewReceipt(receipt),
-		})
+		txModel := NewTx(tx, receipt, block, timestamp, i)
+		blk.Transactions = append(blk.Transactions, txModel.Hash)
 	}
 
-	return result
+	return blk
 }
 
-// NewReceipt преобразует квитанцию в models.Receipt
-func NewReceipt(receipt *types.Receipt) *models.Receipt {
+// NewTx преобразует транзакцию из go-ethereum в models.Tx
+func NewTx(tx *types.Transaction, receipt *types.Receipt, block *types.Block, ts time.Time, index int) models.Tx {
+	v, r, s := tx.RawSignatureValues()
+	from := getTxSender(tx)
+
+	var (
+		maxFeePerGas, maxPriorityFeePerGas *uint
+	)
+
+	if tx.GasFeeCap() != nil {
+		val := uint(tx.GasFeeCap().Uint64())
+		maxFeePerGas = &val
+	}
+	if tx.GasTipCap() != nil {
+		val := uint(tx.GasTipCap().Uint64())
+		maxPriorityFeePerGas = &val
+	}
+
+	txModel := models.Tx{
+		Hash:                 tx.Hash().Hex(),
+		BlockHash:            block.Hash().Hex(),
+		BlockNumber:          uint(block.NumberU64()),
+		TransactionIndex:     uint(index),
+		From:                 from.Hex(),
+		To:                   addressToOptionalString(tx.To()),
+		Value:                tx.Value().String(), // big.Int в string
+		Gas:                  uint(tx.Gas()),
+		GasPrice:             uint(tx.GasPrice().Uint64()),
+		Input:                "0x" + common.Bytes2Hex(tx.Data()),
+		Nonce:                uint(tx.Nonce()),
+		Type:                 uint(tx.Type()),
+		MaxFeePerGas:         maxFeePerGas,
+		MaxPriorityFeePerGas: maxPriorityFeePerGas,
+		ChainID:              uint(tx.ChainId().Uint64()),
+		V:                    v.String(),
+		R:                    r.String(),
+		S:                    s.String(),
+		AccessList:           "", // если нужно сериализовать — потом добавим
+		BlockTimestamp:       ts,
+	}
+
+	if receipt != nil {
+		txModel.Receipt = NewReceipt(receipt, tx, block, ts, index)
+	}
+
+	return txModel
+}
+
+// NewReceipt преобразует go-ethereum Receipt в models.Receipt
+func NewReceipt(receipt *types.Receipt, tx *types.Transaction, block *types.Block, ts time.Time, index int) *models.Receipt {
 	if receipt == nil {
 		return nil
 	}
 
-	return &models.Receipt{
-		ContractAddress:   receipt.ContractAddress.Hex(),
-		CumulativeGasUsed: receipt.CumulativeGasUsed,
-		EffectiveGasPrice: bigIntToString(receipt.EffectiveGasPrice),
-		GasUsed:           receipt.GasUsed,
-		Logs:              NewLogs(receipt.Logs),
-		LogsBloom:         common.Bytes2Hex(receipt.Bloom.Bytes()),
-		Status:            uint64(receipt.Status),
-		Type:              receipt.Type,
+	rec := &models.Receipt{
+		TransactionHash:   tx.Hash().Hex(),
+		TransactionIndex:  uint(index),
+		BlockHash:         block.Hash().Hex(),
+		BlockNumber:       uint(block.NumberU64()),
+		From:              getTxSender(tx).Hex(),
+		To:                addressToOptionalString(tx.To()),
+		ContractAddress:   addressToOptionalString(&receipt.ContractAddress),
+		CumulativeGasUsed: uint(receipt.CumulativeGasUsed),
+		GasUsed:           uint(receipt.GasUsed),
+		EffectiveGasPrice: uint(receipt.EffectiveGasPrice.Uint64()),
+		Status:            uint(receipt.Status),
+		LogsBloom:         "0x" + common.Bytes2Hex(receipt.Bloom.Bytes()),
+		BlockTimestamp:    ts,
 	}
+
+	// Логи
+	rec.Logs = NewLogs(receipt.Logs, ts)
+	return rec
 }
 
-// NewLogs преобразует логи в []models.Log
-func NewLogs(logs []*types.Log) []models.Log {
-	if logs == nil {
+// NewLogs преобразует []*types.Log → []models.Log
+func NewLogs(logs []*types.Log, ts time.Time) []models.Log {
+	if len(logs) == 0 {
 		return nil
 	}
-
 	result := make([]models.Log, len(logs))
 	for i, l := range logs {
 		result[i] = models.Log{
-			Address:         l.Address.Hex(),
-			Topics:          topicsToStrings(l.Topics),
-			Data:            common.Bytes2Hex(l.Data),
-			TransactionHash: l.TxHash.Hex(),
-			LogIndex:        uint64(i),
-			Removed:         l.Removed,
+			BlockNumber:      uint(l.BlockNumber),
+			BlockHash:        l.BlockHash.Hex(),
+			TransactionHash:  l.TxHash.Hex(),
+			TransactionIndex: uint(l.TxIndex),
+			LogIndex:         uint(l.Index),
+			Address:          l.Address.Hex(),
+			Data:             "0x" + common.Bytes2Hex(l.Data),
+			Topics:           topicsToStrings(l.Topics),
+			BlockTimestamp:   ts,
+			Topic0:           firstTopic(l.Topics),
 		}
 	}
 	return result
 }
 
-// Вспомогательные функции
-
-func bigIntToString(n *big.Int) string {
-	if n == nil {
-		return "0"
-	}
-	return n.String()
-}
-
-func addressToString(addr *common.Address) string {
+func addressToOptionalString(addr *common.Address) *string {
 	if addr == nil {
-		return ""
+		return nil
 	}
-	return addr.Hex()
+	s := addr.Hex()
+	return &s
 }
 
 func topicsToStrings(topics []common.Hash) []string {
-	result := make([]string, len(topics))
+	res := make([]string, len(topics))
 	for i, t := range topics {
-		result[i] = t.Hex()
+		res[i] = t.Hex()
 	}
-	return result
+	return res
 }
 
 func getTxSender(tx *types.Transaction) common.Address {

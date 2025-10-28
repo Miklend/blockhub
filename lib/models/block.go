@@ -1,70 +1,85 @@
 package models
 
-// Блок (eth_getBlockByNumber / eth_getBlockByHash)
+import "time"
+
+// Block — модель блока, пригодная для обмена между микросервисами и ClickHouse
 type Block struct {
-	BaseFeePerGas    string   `json:"baseFeePerGas,omitempty"`
-	Difficulty       string   `json:"difficulty"`
-	ExtraData        string   `json:"extraData"`
-	GasLimit         uint64   `json:"gasLimit"`
-	GasUsed          uint64   `json:"gasUsed"`
-	Hash             string   `json:"hash"`
-	LogsBloom        string   `json:"logsBloom"`
-	Miner            string   `json:"miner"`
-	MixHash          string   `json:"mixHash"`
-	Nonce            uint64   `json:"nonce"`
-	Number           uint64   `json:"number"`
-	ParentHash       string   `json:"parentHash"`
-	ReceiptsRoot     string   `json:"receiptsRoot"`
-	Sha3Uncles       string   `json:"sha3Uncles"`
-	Size             uint64   `json:"size"`
-	StateRoot        string   `json:"stateRoot"`
-	Timestamp        uint64   `json:"timestamp"`
-	Transactions     []Tx     `json:"transactions"`
-	TransactionsRoot string   `json:"transactionsRoot"`
-	Uncles           []string `json:"uncles"`
+	Hash             string    `json:"hash" ch:"hash"`
+	Number           uint      `json:"number" ch:"number"`
+	ParentHash       string    `json:"parentHash" ch:"parent_hash"`
+	Nonce            uint      `json:"nonce" ch:"nonce"`
+	Sha3Uncles       string    `json:"sha3Uncles" ch:"sha3_uncles"`
+	LogsBloom        string    `json:"logsBloom" ch:"logs_bloom"`
+	TransactionsRoot string    `json:"transactionsRoot" ch:"transactions_root"`
+	StateRoot        string    `json:"stateRoot" ch:"state_root"`
+	ReceiptsRoot     string    `json:"receiptsRoot" ch:"receipts_root"`
+	Miner            string    `json:"miner" ch:"miner"`
+	Difficulty       string    `json:"difficulty" ch:"difficulty"`
+	TotalDifficulty  string    `json:"totalDifficulty" ch:"total_difficulty"`
+	Size             uint      `json:"size" ch:"size"`
+	ExtraData        string    `json:"extraData" ch:"extra_data"`
+	GasLimit         uint      `json:"gasLimit" ch:"gas_limit"`
+	GasUsed          uint      `json:"gasUsed" ch:"gas_used"`
+	BaseFeePerGas    *uint     `json:"baseFeePerGas,omitempty" ch:"base_fee_per_gas"`
+	Timestamp        time.Time `json:"timestamp" ch:"timestamp"`
+	MixHash          string    `json:"mixHash" ch:"mix_hash"`
+	Transactions     []string  `json:"transactions" ch:"transactions"`
+	Uncles           []string  `json:"uncles" ch:"uncles"`
 }
 
-// Транзакция (eth_getTransactionByHash / eth_getBlockBy*)
+// Tx — модель транзакции
 type Tx struct {
-	From                 string   `json:"from"`
-	Gas                  uint64   `json:"gas"`
-	GasPrice             string   `json:"gasPrice"`
-	MaxFeePerGas         string   `json:"maxFeePerGas,omitempty"`
-	MaxPriorityFeePerGas string   `json:"maxPriorityFeePerGas,omitempty"`
-	Hash                 string   `json:"hash"`
-	Input                string   `json:"input"`
-	Nonce                uint64   `json:"nonce"`
-	To                   string   `json:"to,omitempty"`
-	TransactionIndex     uint64   `json:"transactionIndex"`
-	Value                string   `json:"value"`
-	Type                 uint8    `json:"type"`
-	ChainID              string   `json:"chainId,omitempty"`
-	V                    string   `json:"v"`
-	R                    string   `json:"r"`
-	S                    string   `json:"s"`
-	Receipt              *Receipt `json:"receipt,omitempty"`
+	Hash                 string    `json:"hash" ch:"hash"`
+	BlockHash            string    `json:"blockHash" ch:"block_hash"`
+	BlockNumber          uint      `json:"blockNumber" ch:"block_number"`
+	TransactionIndex     uint      `json:"transactionIndex" ch:"transaction_index"`
+	From                 string    `json:"from" ch:"from"`
+	To                   *string   `json:"to,omitempty" ch:"to"`
+	Value                string    `json:"value" ch:"value"`
+	Gas                  uint      `json:"gas" ch:"gas"`
+	GasPrice             uint      `json:"gasPrice" ch:"gas_price"`
+	Input                string    `json:"input" ch:"input"`
+	Nonce                uint      `json:"nonce" ch:"nonce"`
+	Type                 uint      `json:"type" ch:"type"`
+	MaxFeePerGas         *uint     `json:"maxFeePerGas,omitempty" ch:"max_fee_per_gas"`
+	MaxPriorityFeePerGas *uint     `json:"maxPriorityFeePerGas,omitempty" ch:"max_priority_fee_per_gas"`
+	ChainID              uint      `json:"chainId" ch:"chain_id"`
+	V                    string    `json:"v" ch:"v"`
+	R                    string    `json:"r" ch:"r"`
+	S                    string    `json:"s" ch:"s"`
+	AccessList           string    `json:"accessList" ch:"access_list"`
+	BlockTimestamp       time.Time `json:"blockTimestamp" ch:"block_timestamp"`
+	Receipt              *Receipt  `json:"receipts" ch:"receipts"`
 }
 
-// Квитанция (eth_getTransactionReceipt / eth_getBlockReceipt)
+// Receipt — модель квитанции
 type Receipt struct {
-	ContractAddress   string `json:"contractAddress,omitempty"`
-	CumulativeGasUsed uint64 `json:"cumulativeGasUsed"`
-	EffectiveGasPrice string `json:"effectiveGasPrice"`
-	From              string `json:"from"`
-	GasUsed           uint64 `json:"gasUsed"`
-	Logs              []Log  `json:"logs"`
-	LogsBloom         string `json:"logsBloom"`
-	Status            uint64 `json:"status"`
-	To                string `json:"to,omitempty"`
-	Type              uint8  `json:"type"`
+	TransactionHash   string    `json:"transactionHash" ch:"transaction_hash"`
+	TransactionIndex  uint      `json:"transactionIndex" ch:"transaction_index"`
+	BlockHash         string    `json:"blockHash" ch:"block_hash"`
+	BlockNumber       uint      `json:"blockNumber" ch:"block_number"`
+	From              string    `json:"from" ch:"from"`
+	To                *string   `json:"to,omitempty" ch:"to"`
+	ContractAddress   *string   `json:"contractAddress,omitempty" ch:"contract_address"`
+	CumulativeGasUsed uint      `json:"cumulativeGasUsed" ch:"cumulative_gas_used"`
+	GasUsed           uint      `json:"gasUsed" ch:"gas_used"`
+	EffectiveGasPrice uint      `json:"effectiveGasPrice" ch:"effective_gas_price"`
+	Status            uint      `json:"status" ch:"status"`
+	LogsBloom         string    `json:"logsBloom" ch:"logs_bloom"`
+	BlockTimestamp    time.Time `json:"blockTimestamp" ch:"block_timestamp"`
+	Logs              []Log     `json:"logs" ch:"logs"`
 }
 
-// Лог (event Log)
+// Log — модель лога события
 type Log struct {
-	Address         string   `json:"address"`
-	Topics          []string `json:"topics"`
-	Data            string   `json:"data"`
-	TransactionHash string   `json:"transactionHash"`
-	LogIndex        uint64   `json:"logIndex"`
-	Removed         bool     `json:"removed"`
+	BlockNumber      uint      `json:"blockNumber" ch:"block_number"`
+	BlockHash        string    `json:"blockHash" ch:"block_hash"`
+	TransactionHash  string    `json:"transactionHash" ch:"transaction_hash"`
+	TransactionIndex uint      `json:"transactionIndex" ch:"transaction_index"`
+	LogIndex         uint      `json:"logIndex" ch:"log_index"`
+	Address          string    `json:"address" ch:"address"`
+	Data             string    `json:"data" ch:"data"`
+	Topics           []string  `json:"topics" ch:"topics"`
+	BlockTimestamp   time.Time `json:"blockTimestamp" ch:"block_timestamp"`
+	Topic0           string    `json:"topic0" ch:"topic0"`
 }
