@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"clickhouse-service/internal/db/click_house/rowtypes"
 	"lib/models"
 )
 
@@ -11,18 +12,7 @@ import (
 func (r *LogRepository) FetchLogsByTransaction(table string, txHash string) ([]models.Log, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		BlockNumber      uint64    `ch:"block_number"`
-		BlockHash        string    `ch:"block_hash"`
-		TransactionHash  string    `ch:"transaction_hash"`
-		TransactionIndex uint32    `ch:"transaction_index"`
-		LogIndex         uint32    `ch:"log_index"`
-		Address          string    `ch:"address"`
-		Data             string    `ch:"data"`
-		Topics           []string  `ch:"topics"`
-		BlockTimestamp   time.Time `ch:"block_timestamp"`
-		Topic0           string    `ch:"topic0"`
-	}
+	var result []rowtypes.LogRow
 
 	query := "SELECT * FROM " + table + " WHERE transaction_hash = ? ORDER BY log_index"
 	err := r.Client.Select(ctx, &result, query, txHash)
@@ -52,18 +42,7 @@ func (r *LogRepository) FetchLogsByTransaction(table string, txHash string) ([]m
 func (r *LogRepository) FetchLogsByBlock(table string, blockHash string) ([]models.Log, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		BlockNumber      uint64    `ch:"block_number"`
-		BlockHash        string    `ch:"block_hash"`
-		TransactionHash  string    `ch:"transaction_hash"`
-		TransactionIndex uint32    `ch:"transaction_index"`
-		LogIndex         uint32    `ch:"log_index"`
-		Address          string    `ch:"address"`
-		Data             string    `ch:"data"`
-		Topics           []string  `ch:"topics"`
-		BlockTimestamp   time.Time `ch:"block_timestamp"`
-		Topic0           string    `ch:"topic0"`
-	}
+	var result []rowtypes.LogRow
 
 	query := "SELECT * FROM " + table + " WHERE block_hash = ? ORDER BY transaction_index, log_index"
 	err := r.Client.Select(ctx, &result, query, blockHash)
@@ -93,18 +72,7 @@ func (r *LogRepository) FetchLogsByBlock(table string, blockHash string) ([]mode
 func (r *LogRepository) FetchLogsByBlockNumber(table string, blockNumber uint64) ([]models.Log, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		BlockNumber      uint64    `ch:"block_number"`
-		BlockHash        string    `ch:"block_hash"`
-		TransactionHash  string    `ch:"transaction_hash"`
-		TransactionIndex uint32    `ch:"transaction_index"`
-		LogIndex         uint32    `ch:"log_index"`
-		Address          string    `ch:"address"`
-		Data             string    `ch:"data"`
-		Topics           []string  `ch:"topics"`
-		BlockTimestamp   time.Time `ch:"block_timestamp"`
-		Topic0           string    `ch:"topic0"`
-	}
+	var result []rowtypes.LogRow
 
 	query := "SELECT * FROM " + table + " WHERE block_number = ? ORDER BY transaction_index, log_index"
 	err := r.Client.Select(ctx, &result, query, blockNumber)
@@ -134,18 +102,7 @@ func (r *LogRepository) FetchLogsByBlockNumber(table string, blockNumber uint64)
 func (r *LogRepository) FetchLogsByAddress(table string, address string, limit int) ([]models.Log, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		BlockNumber      uint64    `ch:"block_number"`
-		BlockHash        string    `ch:"block_hash"`
-		TransactionHash  string    `ch:"transaction_hash"`
-		TransactionIndex uint32    `ch:"transaction_index"`
-		LogIndex         uint32    `ch:"log_index"`
-		Address          string    `ch:"address"`
-		Data             string    `ch:"data"`
-		Topics           []string  `ch:"topics"`
-		BlockTimestamp   time.Time `ch:"block_timestamp"`
-		Topic0           string    `ch:"topic0"`
-	}
+	var result []rowtypes.LogRow
 
 	query := "SELECT * FROM " + table + " WHERE address = ? ORDER BY block_timestamp DESC LIMIT ?"
 	err := r.Client.Select(ctx, &result, query, address, limit)
@@ -175,18 +132,7 @@ func (r *LogRepository) FetchLogsByAddress(table string, address string, limit i
 func (r *LogRepository) FetchLogsByTopic(table string, topic string, limit int) ([]models.Log, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		BlockNumber      uint64    `ch:"block_number"`
-		BlockHash        string    `ch:"block_hash"`
-		TransactionHash  string    `ch:"transaction_hash"`
-		TransactionIndex uint32    `ch:"transaction_index"`
-		LogIndex         uint32    `ch:"log_index"`
-		Address          string    `ch:"address"`
-		Data             string    `ch:"data"`
-		Topics           []string  `ch:"topics"`
-		BlockTimestamp   time.Time `ch:"block_timestamp"`
-		Topic0           string    `ch:"topic0"`
-	}
+	var result []rowtypes.LogRow
 
 	query := "SELECT * FROM " + table + " WHERE has(topics, ?) ORDER BY block_timestamp DESC LIMIT ?"
 	err := r.Client.Select(ctx, &result, query, topic, limit)
