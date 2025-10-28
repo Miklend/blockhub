@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"clickhouse-service/internal/db/click_house/rowtypes"
 	"lib/models"
 )
 
@@ -12,28 +13,7 @@ import (
 func (r *TxRepository) FetchTx(table string, txHash string) (models.Tx, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		Hash                 string    `ch:"hash"`
-		BlockHash            string    `ch:"block_hash"`
-		BlockNumber          uint64    `ch:"block_number"`
-		TransactionIndex     uint32    `ch:"transaction_index"`
-		From                 string    `ch:"from"`
-		To                   *string   `ch:"to"`
-		Value                string    `ch:"value"`
-		Gas                  uint64    `ch:"gas"`
-		GasPrice             uint64    `ch:"gas_price"`
-		Input                string    `ch:"input"`
-		Nonce                uint64    `ch:"nonce"`
-		Type                 uint8     `ch:"type"`
-		MaxFeePerGas         *uint64   `ch:"max_fee_per_gas"`
-		MaxPriorityFeePerGas *uint64   `ch:"max_priority_fee_per_gas"`
-		ChainID              uint64    `ch:"chain_id"`
-		V                    string    `ch:"v"`
-		R                    string    `ch:"r"`
-		S                    string    `ch:"s"`
-		AccessList           string    `ch:"access_list"`
-		BlockTimestamp       time.Time `ch:"block_timestamp"`
-	}
+	var result []rowtypes.TxRow
 
 	query := "SELECT * FROM " + table + " WHERE hash = ? LIMIT 1"
 	err := r.Client.Select(ctx, &result, query, txHash)
@@ -95,28 +75,7 @@ func (r *TxRepository) FetchTxs(table string, txHashes []string) ([]models.Tx, e
 
 	ctx := context.Background()
 
-	var result []struct {
-		Hash                 string    `ch:"hash"`
-		BlockHash            string    `ch:"block_hash"`
-		BlockNumber          uint64    `ch:"block_number"`
-		TransactionIndex     uint32    `ch:"transaction_index"`
-		From                 string    `ch:"from"`
-		To                   *string   `ch:"to"`
-		Value                string    `ch:"value"`
-		Gas                  uint64    `ch:"gas"`
-		GasPrice             uint64    `ch:"gas_price"`
-		Input                string    `ch:"input"`
-		Nonce                uint64    `ch:"nonce"`
-		Type                 uint8     `ch:"type"`
-		MaxFeePerGas         *uint64   `ch:"max_fee_per_gas"`
-		MaxPriorityFeePerGas *uint64   `ch:"max_priority_fee_per_gas"`
-		ChainID              uint64    `ch:"chain_id"`
-		V                    string    `ch:"v"`
-		R                    string    `ch:"r"`
-		S                    string    `ch:"s"`
-		AccessList           string    `ch:"access_list"`
-		BlockTimestamp       time.Time `ch:"block_timestamp"`
-	}
+	var result []rowtypes.TxRow
 
 	query := "SELECT * FROM " + table + " WHERE hash IN (?)"
 	err := r.Client.Select(ctx, &result, query, txHashes)
@@ -174,28 +133,7 @@ func (r *TxRepository) FetchTxs(table string, txHashes []string) ([]models.Tx, e
 func (r *TxRepository) FetchTxsByBlock(table string, blockHash string) ([]models.Tx, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		Hash                 string    `ch:"hash"`
-		BlockHash            string    `ch:"block_hash"`
-		BlockNumber          uint64    `ch:"block_number"`
-		TransactionIndex     uint32    `ch:"transaction_index"`
-		From                 string    `ch:"from"`
-		To                   *string   `ch:"to"`
-		Value                string    `ch:"value"`
-		Gas                  uint64    `ch:"gas"`
-		GasPrice             uint64    `ch:"gas_price"`
-		Input                string    `ch:"input"`
-		Nonce                uint64    `ch:"nonce"`
-		Type                 uint8     `ch:"type"`
-		MaxFeePerGas         *uint64   `ch:"max_fee_per_gas"`
-		MaxPriorityFeePerGas *uint64   `ch:"max_priority_fee_per_gas"`
-		ChainID              uint64    `ch:"chain_id"`
-		V                    string    `ch:"v"`
-		R                    string    `ch:"r"`
-		S                    string    `ch:"s"`
-		AccessList           string    `ch:"access_list"`
-		BlockTimestamp       time.Time `ch:"block_timestamp"`
-	}
+	var result []rowtypes.TxRow
 
 	query := "SELECT * FROM " + table + " WHERE block_hash = ? ORDER BY transaction_index"
 	err := r.Client.Select(ctx, &result, query, blockHash)
@@ -249,28 +187,7 @@ func (r *TxRepository) FetchTxsByBlock(table string, blockHash string) ([]models
 func (r *TxRepository) FetchTxsByBlockNumber(table string, blockNumber uint64) ([]models.Tx, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		Hash                 string    `ch:"hash"`
-		BlockHash            string    `ch:"block_hash"`
-		BlockNumber          uint64    `ch:"block_number"`
-		TransactionIndex     uint32    `ch:"transaction_index"`
-		From                 string    `ch:"from"`
-		To                   *string   `ch:"to"`
-		Value                string    `ch:"value"`
-		Gas                  uint64    `ch:"gas"`
-		GasPrice             uint64    `ch:"gas_price"`
-		Input                string    `ch:"input"`
-		Nonce                uint64    `ch:"nonce"`
-		Type                 uint8     `ch:"type"`
-		MaxFeePerGas         *uint64   `ch:"max_fee_per_gas"`
-		MaxPriorityFeePerGas *uint64   `ch:"max_priority_fee_per_gas"`
-		ChainID              uint64    `ch:"chain_id"`
-		V                    string    `ch:"v"`
-		R                    string    `ch:"r"`
-		S                    string    `ch:"s"`
-		AccessList           string    `ch:"access_list"`
-		BlockTimestamp       time.Time `ch:"block_timestamp"`
-	}
+	var result []rowtypes.TxRow
 
 	query := "SELECT * FROM " + table + " WHERE block_number = ? ORDER BY transaction_index"
 	err := r.Client.Select(ctx, &result, query, blockNumber)

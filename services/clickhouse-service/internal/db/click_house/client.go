@@ -3,9 +3,9 @@ package clickhouseRepo
 import (
 	"clickhouse-service/internal/db"
 	"clickhouse-service/internal/db/click_house/block"
-	"clickhouse-service/internal/db/click_house/log"
-	"clickhouse-service/internal/db/click_house/receipt"
 	"clickhouse-service/internal/db/click_house/tx"
+	"clickhouse-service/internal/db/click_house/tx/log"
+	"clickhouse-service/internal/db/click_house/tx/receipt"
 	clientsDB "lib/clients/db"
 	"lib/models"
 	"lib/utils/logging"

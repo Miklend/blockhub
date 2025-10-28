@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"clickhouse-service/internal/db/click_house/rowtypes"
 	"lib/models"
 )
 
@@ -12,21 +13,7 @@ import (
 func (r *ReceiptRepository) FetchReceipt(table string, txHash string) (models.Receipt, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		TransactionHash   string    `ch:"transaction_hash"`
-		TransactionIndex  uint32    `ch:"transaction_index"`
-		BlockHash         string    `ch:"block_hash"`
-		BlockNumber       uint64    `ch:"block_number"`
-		From              string    `ch:"from"`
-		To                *string   `ch:"to"`
-		ContractAddress   *string   `ch:"contract_address"`
-		CumulativeGasUsed uint64    `ch:"cumulative_gas_used"`
-		GasUsed           uint64    `ch:"gas_used"`
-		EffectiveGasPrice uint64    `ch:"effective_gas_price"`
-		Status            uint8     `ch:"status"`
-		LogsBloom         string    `ch:"logs_bloom"`
-		BlockTimestamp    time.Time `ch:"block_timestamp"`
-	}
+	var result []rowtypes.ReceiptRow
 
 	query := "SELECT * FROM " + table + " WHERE transaction_hash = ? LIMIT 1"
 	err := r.Client.Select(ctx, &result, query, txHash)
@@ -73,21 +60,7 @@ func (r *ReceiptRepository) FetchReceipts(table string, txHashes []string) ([]mo
 
 	ctx := context.Background()
 
-	var result []struct {
-		TransactionHash   string    `ch:"transaction_hash"`
-		TransactionIndex  uint32    `ch:"transaction_index"`
-		BlockHash         string    `ch:"block_hash"`
-		BlockNumber       uint64    `ch:"block_number"`
-		From              string    `ch:"from"`
-		To                *string   `ch:"to"`
-		ContractAddress   *string   `ch:"contract_address"`
-		CumulativeGasUsed uint64    `ch:"cumulative_gas_used"`
-		GasUsed           uint64    `ch:"gas_used"`
-		EffectiveGasPrice uint64    `ch:"effective_gas_price"`
-		Status            uint8     `ch:"status"`
-		LogsBloom         string    `ch:"logs_bloom"`
-		BlockTimestamp    time.Time `ch:"block_timestamp"`
-	}
+	var result []rowtypes.ReceiptRow
 
 	query := "SELECT * FROM " + table + " WHERE transaction_hash IN (?)"
 	err := r.Client.Select(ctx, &result, query, txHashes)
@@ -130,21 +103,7 @@ func (r *ReceiptRepository) FetchReceipts(table string, txHashes []string) ([]mo
 func (r *ReceiptRepository) FetchReceiptsByBlock(table string, blockHash string) ([]models.Receipt, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		TransactionHash   string    `ch:"transaction_hash"`
-		TransactionIndex  uint32    `ch:"transaction_index"`
-		BlockHash         string    `ch:"block_hash"`
-		BlockNumber       uint64    `ch:"block_number"`
-		From              string    `ch:"from"`
-		To                *string   `ch:"to"`
-		ContractAddress   *string   `ch:"contract_address"`
-		CumulativeGasUsed uint64    `ch:"cumulative_gas_used"`
-		GasUsed           uint64    `ch:"gas_used"`
-		EffectiveGasPrice uint64    `ch:"effective_gas_price"`
-		Status            uint8     `ch:"status"`
-		LogsBloom         string    `ch:"logs_bloom"`
-		BlockTimestamp    time.Time `ch:"block_timestamp"`
-	}
+	var result []rowtypes.ReceiptRow
 
 	query := "SELECT * FROM " + table + " WHERE block_hash = ? ORDER BY transaction_index"
 	err := r.Client.Select(ctx, &result, query, blockHash)
@@ -185,21 +144,7 @@ func (r *ReceiptRepository) FetchReceiptsByBlock(table string, blockHash string)
 func (r *ReceiptRepository) FetchReceiptsByBlockNumber(table string, blockNumber uint64) ([]models.Receipt, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		TransactionHash   string    `ch:"transaction_hash"`
-		TransactionIndex  uint32    `ch:"transaction_index"`
-		BlockHash         string    `ch:"block_hash"`
-		BlockNumber       uint64    `ch:"block_number"`
-		From              string    `ch:"from"`
-		To                *string   `ch:"to"`
-		ContractAddress   *string   `ch:"contract_address"`
-		CumulativeGasUsed uint64    `ch:"cumulative_gas_used"`
-		GasUsed           uint64    `ch:"gas_used"`
-		EffectiveGasPrice uint64    `ch:"effective_gas_price"`
-		Status            uint8     `ch:"status"`
-		LogsBloom         string    `ch:"logs_bloom"`
-		BlockTimestamp    time.Time `ch:"block_timestamp"`
-	}
+	var result []rowtypes.ReceiptRow
 
 	query := "SELECT * FROM " + table + " WHERE block_number = ? ORDER BY transaction_index"
 	err := r.Client.Select(ctx, &result, query, blockNumber)

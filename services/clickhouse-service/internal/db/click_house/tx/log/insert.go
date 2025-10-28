@@ -154,23 +154,16 @@ func (r *LogRepository) InsertLogsFromBlock(table string, block models.Block) er
 func convertLogToClickHouseRow(log models.Log, blockHash string, blockNumber uint64, blockTimestamp uint64, txIndex uint32) []interface{} {
 	timestamp := time.Unix(int64(blockTimestamp), 0)
 
-	// Получаем topic0
-	topic0 := ""
-	if len(log.Topics) > 0 {
-		topic0 = log.Topics[0]
-	}
-
 	return []interface{}{
-		blockNumber,          // block_number
-		blockHash,            // block_hash
-		log.TransactionHash,  // transaction_hash
-		txIndex,              // transaction_index
-		uint32(log.LogIndex), // log_index
-		log.Address,          // address
-		log.Data,             // data
-		log.Topics,           // topics
-		timestamp,            // block_timestamp
-		timestamp,            // date (MATERIALIZED)
-		topic0,               // topic0 (MATERIALIZED)
+		blockNumber,          // block_number UInt64
+		blockHash,            // block_hash FixedString(66)
+		log.TransactionHash,   // transaction_hash FixedString(66)
+		txIndex,              // transaction_index UInt32
+		uint32(log.LogIndex), // log_index UInt32
+		log.Address,          // address FixedString(42)
+		log.Data,             // data String
+		log.Topics,           // topics Array(FixedString(66))
+		timestamp,            // block_timestamp DateTime64(3, 'UTC')
+		// date и topic0 автоматически вычисляются
 	}
 }

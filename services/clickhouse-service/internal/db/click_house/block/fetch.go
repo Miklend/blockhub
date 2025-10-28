@@ -3,8 +3,8 @@ package block
 import (
 	"context"
 	"strconv"
-	"time"
 
+	"clickhouse-service/internal/db/click_house/rowtypes"
 	"lib/models"
 )
 
@@ -12,29 +12,7 @@ import (
 func (r *BlockRepository) FetchBlock(table string, hashBlock string) (models.Block, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		Hash             string    `ch:"hash"`
-		Number           uint64    `ch:"number"`
-		ParentHash       string    `ch:"parent_hash"`
-		Nonce            string    `ch:"nonce"`
-		Sha3Uncles       string    `ch:"sha3_uncles"`
-		LogsBloom        string    `ch:"logs_bloom"`
-		TransactionsRoot string    `ch:"transactions_root"`
-		StateRoot        string    `ch:"state_root"`
-		ReceiptsRoot     string    `ch:"receipts_root"`
-		Miner            string    `ch:"miner"`
-		Difficulty       string    `ch:"difficulty"`
-		TotalDifficulty  string    `ch:"total_difficulty"`
-		Size             uint64    `ch:"size"`
-		ExtraData        string    `ch:"extra_data"`
-		GasLimit         uint64    `ch:"gas_limit"`
-		GasUsed          uint64    `ch:"gas_used"`
-		BaseFeePerGas    *uint64   `ch:"base_fee_per_gas"`
-		Timestamp        time.Time `ch:"timestamp"`
-		MixHash          string    `ch:"mix_hash"`
-		Transactions     []string  `ch:"transactions"`
-		Uncles           []string  `ch:"uncles"`
-	}
+	var result []rowtypes.BlockRow
 
 	query := "SELECT * FROM " + table + " WHERE hash = ? LIMIT 1"
 	err := r.Client.Select(ctx, &result, query, hashBlock)
@@ -93,29 +71,7 @@ func (r *BlockRepository) FetchBlocks(table string, hashBlocks []string) ([]mode
 
 	ctx := context.Background()
 
-	var result []struct {
-		Hash             string    `ch:"hash"`
-		Number           uint64    `ch:"number"`
-		ParentHash       string    `ch:"parent_hash"`
-		Nonce            string    `ch:"nonce"`
-		Sha3Uncles       string    `ch:"sha3_uncles"`
-		LogsBloom        string    `ch:"logs_bloom"`
-		TransactionsRoot string    `ch:"transactions_root"`
-		StateRoot        string    `ch:"state_root"`
-		ReceiptsRoot     string    `ch:"receipts_root"`
-		Miner            string    `ch:"miner"`
-		Difficulty       string    `ch:"difficulty"`
-		TotalDifficulty  string    `ch:"total_difficulty"`
-		Size             uint64    `ch:"size"`
-		ExtraData        string    `ch:"extra_data"`
-		GasLimit         uint64    `ch:"gas_limit"`
-		GasUsed          uint64    `ch:"gas_used"`
-		BaseFeePerGas    *uint64   `ch:"base_fee_per_gas"`
-		Timestamp        time.Time `ch:"timestamp"`
-		MixHash          string    `ch:"mix_hash"`
-		Transactions     []string  `ch:"transactions"`
-		Uncles           []string  `ch:"uncles"`
-	}
+	var result []rowtypes.BlockRow
 
 	query := "SELECT * FROM " + table + " WHERE hash IN (?)"
 	err := r.Client.Select(ctx, &result, query, hashBlocks)
@@ -170,29 +126,7 @@ func (r *BlockRepository) FetchBlocks(table string, hashBlocks []string) ([]mode
 func (r *BlockRepository) FetchBlockByNumber(table string, blockNumber uint64) (models.Block, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		Hash             string    `ch:"hash"`
-		Number           uint64    `ch:"number"`
-		ParentHash       string    `ch:"parent_hash"`
-		Nonce            string    `ch:"nonce"`
-		Sha3Uncles       string    `ch:"sha3_uncles"`
-		LogsBloom        string    `ch:"logs_bloom"`
-		TransactionsRoot string    `ch:"transactions_root"`
-		StateRoot        string    `ch:"state_root"`
-		ReceiptsRoot     string    `ch:"receipts_root"`
-		Miner            string    `ch:"miner"`
-		Difficulty       string    `ch:"difficulty"`
-		TotalDifficulty  string    `ch:"total_difficulty"`
-		Size             uint64    `ch:"size"`
-		ExtraData        string    `ch:"extra_data"`
-		GasLimit         uint64    `ch:"gas_limit"`
-		GasUsed          uint64    `ch:"gas_used"`
-		BaseFeePerGas    *uint64   `ch:"base_fee_per_gas"`
-		Timestamp        time.Time `ch:"timestamp"`
-		MixHash          string    `ch:"mix_hash"`
-		Transactions     []string  `ch:"transactions"`
-		Uncles           []string  `ch:"uncles"`
-	}
+	var result []rowtypes.BlockRow
 
 	query := "SELECT * FROM " + table + " WHERE number = ? LIMIT 1"
 	err := r.Client.Select(ctx, &result, query, blockNumber)
@@ -245,29 +179,7 @@ func (r *BlockRepository) FetchBlockByNumber(table string, blockNumber uint64) (
 func (r *BlockRepository) FetchBlocksByRange(table string, fromBlock, toBlock uint64) ([]models.Block, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		Hash             string    `ch:"hash"`
-		Number           uint64    `ch:"number"`
-		ParentHash       string    `ch:"parent_hash"`
-		Nonce            string    `ch:"nonce"`
-		Sha3Uncles       string    `ch:"sha3_uncles"`
-		LogsBloom        string    `ch:"logs_bloom"`
-		TransactionsRoot string    `ch:"transactions_root"`
-		StateRoot        string    `ch:"state_root"`
-		ReceiptsRoot     string    `ch:"receipts_root"`
-		Miner            string    `ch:"miner"`
-		Difficulty       string    `ch:"difficulty"`
-		TotalDifficulty  string    `ch:"total_difficulty"`
-		Size             uint64    `ch:"size"`
-		ExtraData        string    `ch:"extra_data"`
-		GasLimit         uint64    `ch:"gas_limit"`
-		GasUsed          uint64    `ch:"gas_used"`
-		BaseFeePerGas    *uint64   `ch:"base_fee_per_gas"`
-		Timestamp        time.Time `ch:"timestamp"`
-		MixHash          string    `ch:"mix_hash"`
-		Transactions     []string  `ch:"transactions"`
-		Uncles           []string  `ch:"uncles"`
-	}
+	var result []rowtypes.BlockRow
 
 	query := "SELECT * FROM " + table + " WHERE number >= ? AND number <= ? ORDER BY number"
 	err := r.Client.Select(ctx, &result, query, fromBlock, toBlock)
