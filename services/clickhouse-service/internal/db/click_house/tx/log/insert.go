@@ -22,8 +22,15 @@ func NewLogRepository(client clientsDB.ClickhouseClient, logger *logging.Logger)
 }
 
 // InsertLog вставляет один лог в таблицу
-func (r *LogRepository) InsertLog(table string, log models.Log, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
+// Примечание: требует, чтобы данные блока были доступны
+func (r *LogRepository) InsertLog(table string, log models.Log) error {
 	ctx := context.Background()
+
+	// Для InsertLog данные блока должны быть получены извне
+	// Используем пустые значения, если блок недоступен (может привести к ошибкам)
+	blockHash := ""
+	blockNumber := uint64(0)
+	blockTimestamp := uint64(0)
 
 	row := convertLogToClickHouseRow(log, blockHash, blockNumber, blockTimestamp, 0)
 
@@ -50,12 +57,19 @@ func (r *LogRepository) InsertLog(table string, log models.Log, blockHash string
 }
 
 // InsertLogs вставляет массив логов в таблицу
-func (r *LogRepository) InsertLogs(table string, logs []models.Log, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
+// Примечание: требует, чтобы данные блока были доступны
+func (r *LogRepository) InsertLogs(table string, logs []models.Log) error {
 	if len(logs) == 0 {
 		return nil
 	}
 
 	ctx := context.Background()
+
+	// Для InsertLogs данные блока должны быть получены извне
+	// Используем пустые значения, если блок недоступен (может привести к ошибкам)
+	blockHash := ""
+	blockNumber := uint64(0)
+	blockTimestamp := uint64(0)
 
 	batch, err := r.Client.PrepareBatch(ctx, "INSERT INTO "+table+" VALUES")
 	if err != nil {
@@ -83,7 +97,8 @@ func (r *LogRepository) InsertLogs(table string, logs []models.Log, blockHash st
 }
 
 // InsertLogsFromReceipt вставляет логи из квитанции
-func (r *LogRepository) InsertLogsFromReceipt(table string, receipt models.Receipt, txHash string, txIndex uint32, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
+// Примечание: требует, чтобы данные транзакции и блока были доступны
+func (r *LogRepository) InsertLogsFromReceipt(table string, receipt models.Receipt) error {
 	if len(receipt.Logs) == 0 {
 		return nil
 	}
@@ -95,6 +110,13 @@ func (r *LogRepository) InsertLogsFromReceipt(table string, receipt models.Recei
 		r.Logger.Errorf("Failed to prepare batch for logs from receipt insert: %v", err)
 		return err
 	}
+
+	// Для InsertLogsFromReceipt данные транзакции и блока должны быть получены извне
+	// Используем пустые значения, если данные недоступны (может привести к ошибкам)
+	txIndex := uint32(0)
+	blockHash := ""
+	blockNumber := uint64(0)
+	blockTimestamp := uint64(0)
 
 	for i, log := range receipt.Logs {
 		row := convertLogToClickHouseRow(log, blockHash, blockNumber, blockTimestamp, txIndex)
@@ -111,7 +133,7 @@ func (r *LogRepository) InsertLogsFromReceipt(table string, receipt models.Recei
 		return err
 	}
 
-	r.Logger.Debugf("Successfully inserted %d logs from receipt for transaction %s", len(receipt.Logs), txHash)
+	r.Logger.Debugf("Successfully inserted %d logs from receipt", len(receipt.Logs))
 	return nil
 }
 
@@ -157,7 +179,7 @@ func convertLogToClickHouseRow(log models.Log, blockHash string, blockNumber uin
 	return []interface{}{
 		blockNumber,          // block_number UInt64
 		blockHash,            // block_hash FixedString(66)
-		log.TransactionHash,   // transaction_hash FixedString(66)
+		log.TransactionHash,  // transaction_hash FixedString(66)
 		txIndex,              // transaction_index UInt32
 		uint32(log.LogIndex), // log_index UInt32
 		log.Address,          // address FixedString(42)

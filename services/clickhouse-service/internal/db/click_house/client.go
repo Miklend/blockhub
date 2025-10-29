@@ -77,12 +77,12 @@ func (c *ClickhouseRepo) InsertTxs(table string, txs []models.Tx) error {
 	return c.TxRepo.InsertTxs(table, txs)
 }
 
-func (c *ClickhouseRepo) InsertTxWithBlockData(table string, tx models.Tx, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
-	return c.TxRepo.InsertTxWithBlockData(table, tx, blockHash, blockNumber, blockTimestamp)
+func (c *ClickhouseRepo) InsertTxWithBlockData(table string, tx models.Tx) error {
+	return c.TxRepo.InsertTxWithBlockData(table, tx)
 }
 
-func (c *ClickhouseRepo) InsertTxsWithBlockData(table string, txs []models.Tx, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
-	return c.TxRepo.InsertTxsWithBlockData(table, txs, blockHash, blockNumber, blockTimestamp)
+func (c *ClickhouseRepo) InsertTxsWithBlockData(table string, txs []models.Tx) error {
+	return c.TxRepo.InsertTxsWithBlockData(table, txs)
 }
 
 func (c *ClickhouseRepo) FetchTx(table string, txHash string) (models.Tx, error) {
@@ -107,12 +107,12 @@ func (c *ClickhouseRepo) FetchTxsByAddress(table string, address string, limit i
 
 // Квитанции
 
-func (c *ClickhouseRepo) InsertReceipt(table string, receipt models.Receipt, txHash string, txIndex uint32, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
-	return c.ReceiptRepo.InsertReceipt(table, receipt, txHash, txIndex, blockHash, blockNumber, blockTimestamp)
+func (c *ClickhouseRepo) InsertReceipt(table string, receipt models.Receipt) error {
+	return c.ReceiptRepo.InsertReceipt(table, receipt)
 }
 
-func (c *ClickhouseRepo) InsertReceipts(table string, receipts []models.Receipt, txHashes []string, txIndexes []uint32, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
-	return c.ReceiptRepo.InsertReceipts(table, receipts, txHashes, txIndexes, blockHash, blockNumber, blockTimestamp)
+func (c *ClickhouseRepo) InsertReceipts(table string, receipts []models.Receipt) error {
+	return c.ReceiptRepo.InsertReceipts(table, receipts)
 }
 
 func (c *ClickhouseRepo) InsertReceiptsFromBlock(table string, block models.Block) error {
@@ -141,16 +141,16 @@ func (c *ClickhouseRepo) FetchReceiptsByAddress(table string, address string, li
 
 // Логи
 
-func (c *ClickhouseRepo) InsertLog(table string, log models.Log, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
-	return c.LogRepo.InsertLog(table, log, blockHash, blockNumber, blockTimestamp)
+func (c *ClickhouseRepo) InsertLog(table string, log models.Log) error {
+	return c.LogRepo.InsertLog(table, log)
 }
 
-func (c *ClickhouseRepo) InsertLogs(table string, logs []models.Log, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
-	return c.LogRepo.InsertLogs(table, logs, blockHash, blockNumber, blockTimestamp)
+func (c *ClickhouseRepo) InsertLogs(table string, logs []models.Log) error {
+	return c.LogRepo.InsertLogs(table, logs)
 }
 
-func (c *ClickhouseRepo) InsertLogsFromReceipt(table string, receipt models.Receipt, txHash string, txIndex uint32, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
-	return c.LogRepo.InsertLogsFromReceipt(table, receipt, txHash, txIndex, blockHash, blockNumber, blockTimestamp)
+func (c *ClickhouseRepo) InsertLogsFromReceipt(table string, receipt models.Receipt) error {
+	return c.LogRepo.InsertLogsFromReceipt(table, receipt)
 }
 
 func (c *ClickhouseRepo) InsertLogsFromBlock(table string, block models.Block) error {

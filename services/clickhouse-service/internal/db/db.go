@@ -16,8 +16,8 @@ type DB interface {
 	// Транзакции
 	InsertTx(table string, tx models.Tx) error
 	InsertTxs(table string, txs []models.Tx) error
-	InsertTxWithBlockData(table string, tx models.Tx, blockHash string, blockNumber uint64, blockTimestamp uint64) error
-	InsertTxsWithBlockData(table string, txs []models.Tx, blockHash string, blockNumber uint64, blockTimestamp uint64) error
+	InsertTxWithBlockData(table string, tx models.Tx) error
+	InsertTxsWithBlockData(table string, txs []models.Tx) error
 	FetchTx(table string, txHash string) (models.Tx, error)
 	FetchTxs(table string, txHashes []string) ([]models.Tx, error)
 	FetchTxsByBlock(table string, blockHash string) ([]models.Tx, error)
@@ -25,8 +25,8 @@ type DB interface {
 	FetchTxsByAddress(table string, address string, limit int) ([]models.Tx, error)
 
 	// Квитанции
-	InsertReceipt(table string, receipt models.Receipt, txHash string, txIndex uint32, blockHash string, blockNumber uint64, blockTimestamp uint64) error
-	InsertReceipts(table string, receipts []models.Receipt, txHashes []string, txIndexes []uint32, blockHash string, blockNumber uint64, blockTimestamp uint64) error
+	InsertReceipt(table string, receipt models.Receipt) error
+	InsertReceipts(table string, receipts []models.Receipt) error
 	InsertReceiptsFromBlock(table string, block models.Block) error
 	FetchReceipt(table string, txHash string) (models.Receipt, error)
 	FetchReceipts(table string, txHashes []string) ([]models.Receipt, error)
@@ -35,9 +35,9 @@ type DB interface {
 	FetchReceiptsByAddress(table string, address string, limit int) ([]models.Receipt, error)
 
 	// Логи
-	InsertLog(table string, log models.Log, blockHash string, blockNumber uint64, blockTimestamp uint64) error
-	InsertLogs(table string, logs []models.Log, blockHash string, blockNumber uint64, blockTimestamp uint64) error
-	InsertLogsFromReceipt(table string, receipt models.Receipt, txHash string, txIndex uint32, blockHash string, blockNumber uint64, blockTimestamp uint64) error
+	InsertLog(table string, log models.Log) error
+	InsertLogs(table string, logs []models.Log) error
+	InsertLogsFromReceipt(table string, receipt models.Receipt) error
 	InsertLogsFromBlock(table string, block models.Block) error
 	FetchLogsByTransaction(table string, txHash string) ([]models.Log, error)
 	FetchLogsByBlock(table string, blockHash string) ([]models.Log, error)

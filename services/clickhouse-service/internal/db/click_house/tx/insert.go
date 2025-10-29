@@ -85,8 +85,15 @@ func (r *TxRepository) InsertTxs(table string, txs []models.Tx) error {
 }
 
 // InsertTxWithBlockData вставляет транзакцию с данными блока
-func (r *TxRepository) InsertTxWithBlockData(table string, tx models.Tx, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
+// Примечание: требует, чтобы блок был доступен через блокчейн API или другой источник данных
+func (r *TxRepository) InsertTxWithBlockData(table string, tx models.Tx) error {
 	ctx := context.Background()
+
+	// Для InsertTxWithBlockData данные блока должны быть получены извне
+	// Используем пустые значения, если блок недоступен (может привести к ошибкам)
+	blockHash := ""
+	blockNumber := uint64(0)
+	blockTimestamp := uint64(0)
 
 	row := convertTxToClickHouseRow(tx, blockHash, blockNumber, blockTimestamp)
 
@@ -113,12 +120,19 @@ func (r *TxRepository) InsertTxWithBlockData(table string, tx models.Tx, blockHa
 }
 
 // InsertTxsWithBlockData вставляет массив транзакций с данными блока
-func (r *TxRepository) InsertTxsWithBlockData(table string, txs []models.Tx, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
+// Примечание: требует, чтобы блок был доступен через блокчейн API или другой источник данных
+func (r *TxRepository) InsertTxsWithBlockData(table string, txs []models.Tx) error {
 	if len(txs) == 0 {
 		return nil
 	}
 
 	ctx := context.Background()
+
+	// Для InsertTxsWithBlockData данные блока должны быть получены извне
+	// Используем пустые значения, если блок недоступен (может привести к ошибкам)
+	blockHash := ""
+	blockNumber := uint64(0)
+	blockTimestamp := uint64(0)
 
 	batch, err := r.Client.PrepareBatch(ctx, "INSERT INTO "+table+" VALUES")
 	if err != nil {

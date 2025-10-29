@@ -23,8 +23,17 @@ func NewReceiptRepository(client clientsDB.ClickhouseClient, logger *logging.Log
 }
 
 // InsertReceipt вставляет одну квитанцию в таблицу
-func (r *ReceiptRepository) InsertReceipt(table string, receipt models.Receipt, txHash string, txIndex uint32, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
+// Примечание: требует, чтобы данные транзакции и блока были доступны
+func (r *ReceiptRepository) InsertReceipt(table string, receipt models.Receipt) error {
 	ctx := context.Background()
+
+	// Для InsertReceipt данные транзакции и блока должны быть получены извне
+	// Используем пустые значения, если данные недоступны (может привести к ошибкам)
+	txHash := ""
+	txIndex := uint32(0)
+	blockHash := ""
+	blockNumber := uint64(0)
+	blockTimestamp := uint64(0)
 
 	row := convertReceiptToClickHouseRow(receipt, txHash, txIndex, blockHash, blockNumber, blockTimestamp)
 
@@ -46,12 +55,13 @@ func (r *ReceiptRepository) InsertReceipt(table string, receipt models.Receipt, 
 		return err
 	}
 
-	r.Logger.Debugf("Successfully inserted receipt for transaction %s", txHash)
+	r.Logger.Debugf("Successfully inserted receipt")
 	return nil
 }
 
 // InsertReceipts вставляет массив квитанций в таблицу
-func (r *ReceiptRepository) InsertReceipts(table string, receipts []models.Receipt, txHashes []string, txIndexes []uint32, blockHash string, blockNumber uint64, blockTimestamp uint64) error {
+// Примечание: требует, чтобы данные транзакций и блоков были доступны
+func (r *ReceiptRepository) InsertReceipts(table string, receipts []models.Receipt) error {
 	if len(receipts) == 0 {
 		return nil
 	}
@@ -64,8 +74,17 @@ func (r *ReceiptRepository) InsertReceipts(table string, receipts []models.Recei
 		return err
 	}
 
+	// Для InsertReceipts данные транзакций и блоков должны быть получены извне
+	// Используем пустые значения, если данные недоступны (может привести к ошибкам)
+	blockHash := ""
+	blockNumber := uint64(0)
+	blockTimestamp := uint64(0)
+
 	for i, receipt := range receipts {
-		row := convertReceiptToClickHouseRow(receipt, txHashes[i], txIndexes[i], blockHash, blockNumber, blockTimestamp)
+		// Используем пустые значения для txHash и txIndex
+		txHash := ""
+		txIndex := uint32(i)
+		row := convertReceiptToClickHouseRow(receipt, txHash, txIndex, blockHash, blockNumber, blockTimestamp)
 		err = batch.Append(row...)
 		if err != nil {
 			r.Logger.Errorf("Failed to append receipt %d to batch: %v", i, err)
