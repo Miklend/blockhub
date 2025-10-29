@@ -21,22 +21,29 @@ func NewProvider(cfg models.Provider, logger *logging.Logger) (node.Provider, er
 	}
 }
 
-func NewProviderPool(cfg models.Provider, logger *logging.Logger) ([]node.Provider, error) {
-	if cfg.NumClients <= 0 {
-		return nil, fmt.Errorf("Client Num is invalid")
+func NewProviderPool(cfgList []models.Provider, logger *logging.Logger) ([]node.Provider, error) {
+	if len(cfgList) == 0 {
+		return nil, fmt.Errorf("No providers configured")
 	}
-	pool := make([]node.Provider, cfg.NumClients)
 
-	logger.Infof("Initializing %d Clients", cfg.NumClients)
+	var providerPool []node.Provider
 
-	for i := 0; i < cfg.NumClients; i++ {
-		provider, err := NewProvider(cfg, logger)
-		if err != nil {
-			logger.Warn("Failed to create client %d, %w", i, err)
+	for i, cfg := range cfgList {
+		if cfg.NumClients <= 0 {
+			return nil, fmt.Errorf("num_clients must be greater than zero")
+
 		}
-		pool[i] = provider
-	}
 
-	logger.Infof("Successfully created %d clients", cfg.NumClients)
-	return pool, nil
+		logger.Infof("Creating %d clients for key %d...", cfg.NumClients, i+1)
+
+		for j := 0; j < cfg.NumClients; j++ {
+			provider, err := NewProvider(cfg, logger)
+			if err != nil {
+				return nil, fmt.Errorf("Failed to create client %d for key %d: %w", j+1, i+1, err)
+			}
+			providerPool = append(providerPool, provider)
+
+		}
+	}
+	return providerPool, nil
 }

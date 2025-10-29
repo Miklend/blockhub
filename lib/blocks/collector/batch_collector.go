@@ -13,10 +13,16 @@ import (
 
 // PostBatch отправляет батч запросов на Alchemy и возвращает массив models.Block.
 func (bc *BlockCollector) PostBatch(ctx context.Context, blocks []uint64) ([]models.Block, error) {
+	bc.logger.Debugf("Rate Limiter status: %v", bc.limiter != nil)
 	if len(blocks) == 0 {
 		return nil, fmt.Errorf("no block numbers provided")
 	}
-
+	if bc.limiter != nil {
+		if err := bc.limiter.Wait(ctx); err != nil {
+			bc.logger.Errorf("Limiter wait failed: %v", err)
+			return nil, fmt.Errorf("limiter wait failed: %w", err)
+		}
+	}
 	var batch []rpc.BatchElem
 	for _, n := range blocks {
 		numHex := "0x" + big.NewInt(int64(n)).Text(16)

@@ -60,7 +60,7 @@ func main() {
 	clientsPool := []node.Provider{providerClient}
 
 	// Инициализация BlockCollector
-	blockCollector := collectorLib.NewBlockCollector(clientsPool, logger)
+	blockCollector := collectorLib.NewBlockCollector(clientsPool, 20, logger)
 
 	// Инициализация RealtimeCollector
 	realtimeCollector := collector.NewRealtimeCollector(blockCollector)

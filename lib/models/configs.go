@@ -13,10 +13,11 @@ import (
 )
 
 type Config struct {
-	ProviderRealTime Provider   `yaml:"provider_realtime"`
-	Broker           Broker     `yaml:"broker"`
-	Clickhouse       Clickhouse `yaml:"clickhouse"`
-	Redis            Redis      `yaml:"redis"`
+	ProviderRealTime   Provider   `yaml:"provider_realtime"`
+	ProviderHistorical []Provider `yaml:"provider_historical"`
+	Broker             Broker     `yaml:"broker"`
+	Clickhouse         Clickhouse `yaml:"clickhouse"`
+	Redis              Redis      `yaml:"redis"`
 }
 
 type Provider struct {
@@ -26,8 +27,8 @@ type Provider struct {
 	ApiKey       string `yaml:"api_key"`
 	NumClients   int    `yaml:"num_clients"`
 
-	Limiter    int `yaml:"limiter"`
-	MaxRetries int `yaml:"max_retries"`
+	Limiter    float64 `yaml:"limiter"`
+	MaxRetries int     `yaml:"max_retries"`
 }
 
 type Broker struct {
