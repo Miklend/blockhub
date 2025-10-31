@@ -40,13 +40,15 @@ func main() {
 	// Диапазоны для ключей
 	key1End := startBlock + halfBlocks - 1
 	key2Start := key1End + 1
+	key2End := key2Start + halfBlocks - 1
+	key3Start := key2End + 1
 
 	go runJob(ctx, logger, clients[0], startBlock, key1End, batchSize)
 
 	// Запуск горутин
 	go runJob(ctx, logger, clients[1], key2Start, endBlock, batchSize)
 
-	go runJob(ctx, logger, clients[2], key2Start, endBlock, batchSize)
+	go runJob(ctx, logger, clients[2], key3Start, endBlock, batchSize)
 
 }
 
