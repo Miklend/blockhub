@@ -8,12 +8,12 @@ import (
 	"lib/models"
 	"lib/utils/logging"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
 func main() {
 	logger := logging.GetLogger()
-	logger.Info("Logger initialized successfully")
 	cfg := models.GetConfig(logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -24,65 +24,79 @@ func main() {
 		logger.Fatalf("Failed to create client pool: %v", err)
 	}
 
-	if len(clients) < 2 {
-		logger.Fatal("Configuration must contain at least 2 provider keys.")
-	}
-
 	// Параметры
 	startBlock := uint64(23000000)
-	endBlock := uint64(23000029) // Общий диапазон 200 блоков
-	batchSize := uint64(30)
+	endBlock := uint64(23000029)
+	batchSize := uint64(10) // уменьшаем для теста
 
-	// Разделяем диапазон поровну на ключи
+	// Правильное разделение на клиентов
 	totalBlocks := endBlock - startBlock + 1
-	halfBlocks := totalBlocks / 3
+	blocksPerClient := totalBlocks / uint64(len(clients))
 
-	// Диапазоны для ключей
-	key1End := startBlock + halfBlocks - 1
-	key2Start := key1End + 1
-	key2End := key2Start + halfBlocks - 1
-	key3Start := key2End + 1
+	var wg sync.WaitGroup
 
-	go runJob(ctx, logger, clients[0], startBlock, key1End, batchSize)
+	for i, client := range clients {
+		wg.Add(1)
 
-	// Запуск горутин
-	go runJob(ctx, logger, clients[1], key2Start, endBlock, batchSize)
+		clientStart := startBlock + uint64(i)*blocksPerClient
+		clientEnd := clientStart + blocksPerClient - 1
 
-	go runJob(ctx, logger, clients[2], key3Start, endBlock, batchSize)
+		// Последний клиент получает остаток
+		if i == len(clients)-1 {
+			clientEnd = endBlock
+		}
 
+		go func(client node.Provider, start, end uint64, clientNum int) {
+			defer wg.Done()
+			runJob(ctx, logger, client, start, end, batchSize, clientNum)
+		}(client, clientStart, clientEnd, i)
+	}
+
+	// Ждем завершения ВСЕХ горутин
+	wg.Wait()
+	logger.Info("All jobs completed")
 }
 
-func runJob(ctx context.Context, logger *logging.Logger, client node.Provider, start, end, batchSize uint64) {
+func runJob(ctx context.Context, logger *logging.Logger, client node.Provider,
+	start, end, batchSize uint64, clientNum int) {
+
 	blockCollector := collector.NewBlockCollector(client, 1, logger)
-
 	current := start
-	for current <= end {
-		batchStart := current
-		batchEnd := current + batchSize - 1
 
-		// Коррекция последнего батча
+	for current <= end {
+		// Проверяем, не отменен ли контекст
+		select {
+		case <-ctx.Done():
+			logger.Infof("Client %d: context canceled, stopping at block %d", clientNum, current)
+			return
+		default:
+		}
+
+		batchEnd := current + batchSize - 1
 		if batchEnd > end {
 			batchEnd = end
 		}
 
 		batchBlocks := make([]uint64, 0, batchSize)
-		for b := batchStart; b <= batchEnd; b++ {
+		for b := current; b <= batchEnd; b++ {
 			batchBlocks = append(batchBlocks, b)
 		}
 
-		// Вызов PostBatch
 		fetchedBlocks, err := blockCollector.PostBatch(ctx, batchBlocks)
-
 		if err != nil {
-			logger.Errorf("Client failed on blocks %d-%d: %v", batchStart, batchEnd, err)
+			logger.Errorf("Client %d failed on blocks %d-%d: %v", clientNum, current, batchEnd, err)
+			// Решаем, продолжать ли при ошибках
+			if ctx.Err() != nil { // если контекст отменен - выходим
+				return
+			}
 		} else {
-			logger.Infof("Client success on blocks %d-%d", batchStart, batchEnd)
-		}
-		for j, block := range fetchedBlocks {
-			logger.Infof("Recieved block %d: Hash: %s Transctions: %v", batchBlocks[j], block.Hash, len(block.Transactions))
+			logger.Infof("Client %d success on blocks %d-%d", clientNum, current, batchEnd)
+			for j, block := range fetchedBlocks {
+				logger.Infof("Client %d: Block %d: Hash: %s Transactions: %v",
+					clientNum, batchBlocks[j], block.Hash, len(block.Transactions))
+			}
 		}
 
-		// Переход к следующему батчу
 		current = batchEnd + 1
 	}
 }
