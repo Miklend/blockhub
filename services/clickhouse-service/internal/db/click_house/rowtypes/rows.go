@@ -6,7 +6,7 @@ type BlockRow struct {
 	Hash             string    `ch:"hash"`
 	Number           uint64    `ch:"number"`
 	ParentHash       string    `ch:"parent_hash"`
-	Nonce            string    `ch:"nonce"`
+	Nonce            uint64    `ch:"nonce"`
 	Sha3Uncles       string    `ch:"sha3_uncles"`
 	LogsBloom        string    `ch:"logs_bloom"`
 	TransactionsRoot string    `ch:"transactions_root"`
