@@ -28,12 +28,12 @@ func main() {
 		logger.Fatal("Configuration must contain at least 2 provider keys.")
 	}
 
-	// ⭐ Параметры задачи
+	// Параметры
 	startBlock := uint64(23000000)
 	endBlock := uint64(23000029) // Общий диапазон 200 блоков
 	batchSize := uint64(30)
 
-	// ⭐ Разделяем диапазон поровну на 2 ключа
+	// Разделяем диапазон поровну на ключи
 	totalBlocks := endBlock - startBlock + 1
 	halfBlocks := totalBlocks / 3
 
@@ -43,7 +43,7 @@ func main() {
 
 	go runJob(ctx, logger, clients[0], startBlock, key1End, batchSize)
 
-	// ⭐ Запуск второй горутины (Ключ 2)
+	// Запуск горутин
 	go runJob(ctx, logger, clients[1], key2Start, endBlock, batchSize)
 
 	go runJob(ctx, logger, clients[2], key2Start, endBlock, batchSize)
