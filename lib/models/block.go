@@ -47,6 +47,7 @@ type Tx struct {
 
 // Квитанция (eth_getTransactionReceipt / eth_getBlockReceipt)
 type Receipt struct {
+	TransactionHash   string `json:"transactionHash"`
 	ContractAddress   string `json:"contractAddress,omitempty"`
 	CumulativeGasUsed uint64 `json:"cumulativeGasUsed"`
 	EffectiveGasPrice string `json:"effectiveGasPrice"`

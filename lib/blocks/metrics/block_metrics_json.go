@@ -9,18 +9,12 @@ import (
 	"strings"
 )
 
-// NewBlockFromJSON парсит сырые JSON блока и квитанций в удобную модель models.Block
-func NewBlockFromJSON(blockRaw json.RawMessage, receiptsRaw json.RawMessage) models.Block {
+// ParseBlockJSON парсит JSON блока в models.Block без квитанций
+func ParseBlockJSON(blockRaw json.RawMessage) models.Block {
 	var rb map[string]interface{}
 	if err := json.Unmarshal(blockRaw, &rb); err != nil {
 		fmt.Printf("failed to unmarshal block JSON: %v\n", err)
 		return models.Block{}
-	}
-
-	var rcs []map[string]interface{}
-	if err := json.Unmarshal(receiptsRaw, &rcs); err != nil {
-		fmt.Printf("failed to unmarshal receipt JSON: %v\n", err)
-		rcs = []map[string]interface{}{}
 	}
 
 	blk := models.Block{
@@ -53,7 +47,7 @@ func NewBlockFromJSON(blockRaw json.RawMessage, receiptsRaw json.RawMessage) mod
 
 	// Транзакции
 	if txs, ok := rb["transactions"].([]interface{}); ok {
-		for i, txRaw := range txs {
+		for _, txRaw := range txs {
 			txMap := txRaw.(map[string]interface{})
 			tx := models.Tx{
 				From:                 parseString(txMap["from"]),
@@ -74,11 +68,6 @@ func NewBlockFromJSON(blockRaw json.RawMessage, receiptsRaw json.RawMessage) mod
 				S:                    parseString(txMap["s"]),
 			}
 
-			// Квитанция
-			if i < len(rcs) {
-				tx.Receipt = convertReceiptJSON(rcs[i])
-			}
-
 			blk.Transactions = append(blk.Transactions, tx)
 		}
 	}
@@ -86,7 +75,57 @@ func NewBlockFromJSON(blockRaw json.RawMessage, receiptsRaw json.RawMessage) mod
 	return blk
 }
 
-// вспомогательные функции
+// ParseBlockReceiptsJSON парсит JSON квитанций блока (eth_getBlockReceipts)
+func ParseBlockReceiptsJSON(receiptsRaw json.RawMessage) []models.Receipt {
+	var rcs []map[string]interface{}
+	if err := json.Unmarshal(receiptsRaw, &rcs); err != nil {
+		fmt.Printf("failed to unmarshal block receipts JSON: %v\n", err)
+		return nil
+	}
+
+	receipts := make([]models.Receipt, 0, len(rcs))
+	for _, r := range rcs {
+		receipts = append(receipts, *ConvertReceiptJSON(r))
+	}
+	return receipts
+}
+
+// ConvertReceiptJSON преобразует map[string]interface{} в models.Receipt
+func ConvertReceiptJSON(r map[string]interface{}) *models.Receipt {
+	rec := &models.Receipt{
+		ContractAddress:   parseString(r["contractAddress"]),
+		CumulativeGasUsed: parseUint64(r["cumulativeGasUsed"]),
+		EffectiveGasPrice: parseString(r["effectiveGasPrice"]),
+		From:              parseString(r["from"]),
+		GasUsed:           parseUint64(r["gasUsed"]),
+		LogsBloom:         decodeToHex(r["logsBloom"]),
+		Status:            parseUint64(r["status"]),
+		Type:              uint8(parseUint64(r["type"])),
+	}
+
+	if to, ok := r["to"]; ok {
+		rec.To = parseString(to)
+	}
+
+	// Логи
+	if logs, ok := r["logs"].([]interface{}); ok {
+		for _, l := range logs {
+			lMap := l.(map[string]interface{})
+			rec.Logs = append(rec.Logs, models.Log{
+				Address:         parseString(lMap["address"]),
+				Topics:          parseStringSlice(lMap["topics"]),
+				Data:            decodeToHex(lMap["data"]),
+				TransactionHash: parseString(lMap["transactionHash"]),
+				LogIndex:        parseUint64(lMap["logIndex"]),
+				Removed:         lMap["removed"].(bool),
+			})
+		}
+	}
+
+	return rec
+}
+
+// Вспомогательные функции
 func parseString(v interface{}) string {
 	if v == nil {
 		return ""
@@ -120,40 +159,6 @@ func decodeToHex(v interface{}) string {
 	default:
 		return fmt.Sprintf("%v", val)
 	}
-}
-
-func convertReceiptJSON(r map[string]interface{}) *models.Receipt {
-	rec := &models.Receipt{
-		ContractAddress:   parseString(r["contractAddress"]),
-		CumulativeGasUsed: parseUint64(r["cumulativeGasUsed"]),
-		EffectiveGasPrice: parseString(r["effectiveGasPrice"]),
-		From:              parseString(r["from"]),
-		GasUsed:           parseUint64(r["gasUsed"]),
-		LogsBloom:         decodeToHex(r["logsBloom"]),
-		Status:            parseUint64(r["status"]),
-		Type:              uint8(parseUint64(r["type"])),
-	}
-
-	if to, ok := r["to"]; ok {
-		rec.To = parseString(to)
-	}
-
-	// Логи
-	if logs, ok := r["logs"].([]interface{}); ok {
-		for _, l := range logs {
-			lMap := l.(map[string]interface{})
-			rec.Logs = append(rec.Logs, models.Log{
-				Address:         parseString(lMap["address"]),
-				Topics:          parseStringSlice(lMap["topics"]),
-				Data:            decodeToHex(lMap["data"]),
-				TransactionHash: parseString(lMap["transactionHash"]),
-				LogIndex:        parseUint64(lMap["logIndex"]),
-				Removed:         lMap["removed"].(bool),
-			})
-		}
-	}
-
-	return rec
 }
 
 func parseStringSlice(v interface{}) []string {

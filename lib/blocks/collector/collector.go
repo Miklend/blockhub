@@ -8,10 +8,10 @@ import (
 )
 
 type BlockCollector struct {
-	client       node.Provider
-	clientsCount uint64
-	limiter      *rate.Limiter
-	logger       *logging.Logger
+	client node.Provider
+	// clientsCount uint64
+	limiter *rate.Limiter
+	logger  *logging.Logger
 }
 
 func NewBlockCollector(client node.Provider, limiterRate float64, logger *logging.Logger) *BlockCollector {

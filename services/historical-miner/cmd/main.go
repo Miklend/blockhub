@@ -82,7 +82,7 @@ func runJob(ctx context.Context, logger *logging.Logger, client node.Provider,
 			batchBlocks = append(batchBlocks, b)
 		}
 
-		fetchedBlocks, err := blockCollector.PostBatch(ctx, batchBlocks)
+		fetchedBlocks, err := blockCollector.FetchBlocksAndReceiptsBatch(ctx, batchBlocks)
 		if err != nil {
 			logger.Errorf("Client %d failed on blocks %d-%d: %v", clientNum, current, batchEnd, err)
 			// Решаем, продолжать ли при ошибках

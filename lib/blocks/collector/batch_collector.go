@@ -6,108 +6,112 @@ import (
 	"fmt"
 	"lib/blocks/metrics"
 	"lib/models"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-// PostBatch отправляет батч запросов на Alchemy и возвращает массив models.Block.
-func (bc *BlockCollector) PostBatch(ctx context.Context, blocks []uint64) ([]models.Block, error) {
-	bc.logger.Debugf("Rate Limiter status: %v", bc.limiter != nil)
-	if len(blocks) == 0 {
-		return nil, fmt.Errorf("no block numbers provided")
+// DoBatch выполняет произвольный RPC-батч
+func (bc *BlockCollector) DoBatch(ctx context.Context, elems []rpc.BatchElem) ([]rpc.BatchElem, error) {
+	if len(elems) == 0 {
+		return nil, fmt.Errorf("empty batch request list")
 	}
 	if bc.limiter != nil {
 		if err := bc.limiter.Wait(ctx); err != nil {
-			bc.logger.Errorf("Limiter wait failed: %v", err)
-			return nil, fmt.Errorf("limiter wait failed: %w", err)
+			return nil, fmt.Errorf("rate limiter wait failed: %w", err)
 		}
 	}
-	var batch []rpc.BatchElem
-	for _, n := range blocks {
-		numHex := "0x" + big.NewInt(int64(n)).Text(16)
 
-		batch = append(batch,
-			rpc.BatchElem{
-				Method: "eth_getBlockByNumber",
-				Args:   []interface{}{numHex, true},
-				Result: new(json.RawMessage),
-			},
-			rpc.BatchElem{
-				Method: "eth_getBlockReceipts",
-				Args:   []interface{}{map[string]string{"blockNumber": numHex}},
-				Result: new(json.RawMessage),
-			},
-		)
-	}
-
-	bc.logger.Infof("sending batch request for %d blocks", len(blocks))
-
-	// Отправляем батч запрос
-	if err := bc.Client().BatchCallContext(ctx, batch); err != nil {
-		bc.logger.Errorf("batch request failed: %v", err)
+	if err := bc.Client().BatchCallContext(ctx, elems); err != nil {
 		return nil, fmt.Errorf("batch call failed: %w", err)
 	}
 
-	var result []models.Block
-	var hasErrors bool
+	return elems, nil
+}
 
-	for i := 0; i < len(batch); i += 2 {
-		blockIndex := i / 2
-		blockNumber := blocks[blockIndex]
-
-		// Проверка ошибок конкретных RPC-элементов
-		if batch[i].Error != nil {
-			bc.logger.WithFields(map[string]interface{}{
-				"block":  blockNumber,
-				"method": batch[i].Method,
-			}).Errorf("block fetch failed: %v", batch[i].Error)
-			hasErrors = true
-			continue
-		}
-		if batch[i+1].Error != nil {
-			bc.logger.WithFields(map[string]interface{}{
-				"block":  blockNumber,
-				"method": batch[i+1].Method,
-			}).Errorf("receipts fetch failed: %v", batch[i+1].Error)
-			hasErrors = true
-			continue
-		}
-
-		rawBlock, ok1 := batch[i].Result.(*json.RawMessage)
-		rawReceipts, ok2 := batch[i+1].Result.(*json.RawMessage)
-
-		if !ok1 || !ok2 || rawBlock == nil || rawReceipts == nil {
-			bc.logger.WithFields(map[string]interface{}{
-				"block": blockNumber,
-			}).Warn("invalid batch element — nil or unexpected type")
-			hasErrors = true
-			continue
-		}
-
-		if len(*rawBlock) == 0 {
-			bc.logger.WithFields(map[string]interface{}{
-				"block": blockNumber,
-			}).Warn("empty block response")
-			hasErrors = true
-			continue
-		}
-
-		block := metrics.NewBlockFromJSON(*rawBlock, *rawReceipts)
-		result = append(result, block)
-
-		bc.logger.WithFields(map[string]interface{}{
-			"block": block.Number,
-			"txs":   len(block.Transactions),
-		}).Debug("block parsed successfully")
+// FetchBlocksBatch загружает блоки по номерам
+func (bc *BlockCollector) FetchBlocksBatch(ctx context.Context, numbers []uint64) ([]models.Block, error) {
+	elems := make([]rpc.BatchElem, 0, len(numbers))
+	for _, num := range numbers {
+		var raw json.RawMessage
+		elems = append(elems, rpc.BatchElem{
+			Method: "eth_getBlockByNumber",
+			Args:   []interface{}{fmt.Sprintf("0x%x", num), true},
+			Result: &raw,
+		})
 	}
 
-	// Итог
-	if hasErrors {
-		bc.logger.Warnf("batch for %d blocks completed with partial errors", len(blocks))
-		return result, fmt.Errorf("some batch elements failed, see logs for details")
+	if _, err := bc.DoBatch(ctx, elems); err != nil {
+		return nil, err
 	}
 
-	bc.logger.Infof("batch for %d blocks completed successfully", len(blocks))
-	return result, nil
+	blocks := make([]models.Block, 0, len(elems))
+	for i, e := range elems {
+		if e.Error != nil {
+			bc.logger.Warnf("block fetch error (number %d): %v", numbers[i], e.Error)
+			continue
+		}
+		raw := *e.Result.(*json.RawMessage)
+		blocks = append(blocks, metrics.ParseBlockJSON(raw))
+	}
+	return blocks, nil
+}
+
+// FetchReceiptsBatch загружает квитанции по номерам блоков через eth_getBlockReceipts
+func (bc *BlockCollector) FetchReceiptsBatch(ctx context.Context, numbers []uint64) (map[uint64][]models.Receipt, error) {
+	elems := make([]rpc.BatchElem, 0, len(numbers))
+	for _, num := range numbers {
+		var raw json.RawMessage
+		elems = append(elems, rpc.BatchElem{
+			Method: "eth_getBlockReceipts",
+			Args:   []interface{}{fmt.Sprintf("0x%x", num)},
+			Result: &raw,
+		})
+	}
+
+	if _, err := bc.DoBatch(ctx, elems); err != nil {
+		return nil, err
+	}
+
+	receiptsMap := make(map[uint64][]models.Receipt)
+	for i, e := range elems {
+		if e.Error != nil {
+			bc.logger.Warnf("receipts fetch error (number %d): %v", numbers[i], e.Error)
+			continue
+		}
+		raw := *e.Result.(*json.RawMessage)
+		receiptsMap[numbers[i]] = metrics.ParseBlockReceiptsJSON(raw)
+	}
+	return receiptsMap, nil
+}
+
+// FetchBlocksAndReceiptsBatch загружает блоки и их квитанции
+func (bc *BlockCollector) FetchBlocksAndReceiptsBatch(ctx context.Context, numbers []uint64) ([]models.Block, error) {
+	blocks, err := bc.FetchBlocksBatch(ctx, numbers)
+	if err != nil {
+		return nil, fmt.Errorf("fetch blocks failed: %w", err)
+	}
+
+	receiptsMap, err := bc.FetchReceiptsBatch(ctx, numbers)
+	if err != nil {
+		return nil, fmt.Errorf("fetch receipts failed: %w", err)
+	}
+
+	// Связываем транзакции с квитанциями
+	for i := range blocks {
+		block := &blocks[i]
+		blockReceipts, ok := receiptsMap[block.Number]
+		if !ok {
+			continue
+		}
+		if len(blockReceipts) != len(block.Transactions) {
+			bc.logger.Warnf("block %d: number of receipts (%d) does not match transactions (%d)", block.Number, len(blockReceipts), len(block.Transactions))
+		}
+		for j := range block.Transactions {
+			if j < len(blockReceipts) {
+				block.Transactions[j].Receipt = &blockReceipts[j]
+			}
+		}
+	}
+
+	return blocks, nil
 }
