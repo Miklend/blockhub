@@ -27,23 +27,13 @@ func NewProviderPool(cfgList []models.Provider, logger *logging.Logger) ([]node.
 	}
 
 	var providerPool []node.Provider
-
 	for i, cfg := range cfgList {
-		if cfg.NumClients <= 0 {
-			return nil, fmt.Errorf("num_clients must be greater than zero")
-
+		provider, err := NewProvider(cfg, logger)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create client for key %d: %w", i+1, err)
 		}
-
-		logger.Infof("Creating %d clients for key %d...", cfg.NumClients, i+1)
-
-		for j := 0; j < cfg.NumClients; j++ {
-			provider, err := NewProvider(cfg, logger)
-			if err != nil {
-				return nil, fmt.Errorf("Failed to create client %d for key %d: %w", j+1, i+1, err)
-			}
-			providerPool = append(providerPool, provider)
-
-		}
+		providerPool = append(providerPool, provider)
 	}
+
 	return providerPool, nil
 }
