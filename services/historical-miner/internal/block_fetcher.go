@@ -67,7 +67,7 @@ func (f *BlockFetcher) ProcessBlocks(ctx context.Context) {
 			}
 
 			blockData := &block[0]
-			f.logger.Infof("Block %d fetched correctly,num of transactions:%d sending to receipts queue", blockData.Number, blockData.Transactions)
+			f.logger.Infof("Block %d fetched correctly,num of transactions:%d sending to receipts queue", blockData.Number, len(blockData.Transactions))
 
 			select {
 			case f.receiptsJobChan <- blockData:
