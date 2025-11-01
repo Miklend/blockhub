@@ -1,6 +1,7 @@
 package main
 
 import (
+	worker "blockhub/services/historical-miner/internal"
 	"context"
 	"lib/blocks/collector"
 	fabricClient "lib/clients/fabric_client"
@@ -10,6 +11,12 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+)
+
+const (
+	NUM_BLOCK_FETCHERS           = 3
+	NUM_BLOCK_RECEIPT_PROCESSORS = 5
+	RECEIPT_RATE_LIMIT           = 2.0
 )
 
 func main() {
@@ -24,6 +31,9 @@ func main() {
 		logger.Fatalf("Failed to create client pool: %v", err)
 	}
 
+	blockJobsChan := make(chan uint64, 1000)
+	receiptJobChan := make(chan *models.Block, 1000)
+
 	// Параметры
 	startBlock := uint64(23000000)
 	endBlock := uint64(23000029)
@@ -34,6 +44,20 @@ func main() {
 	blocksPerClient := totalBlocks / uint64(len(clients))
 
 	var wg sync.WaitGroup
+	var wgWorkers sync.WaitGroup
+
+	for i := 0; i < NUM_BLOCK_FETCHERS; i++ {
+		wgWorkers.Add(1)
+		client := clients[i%len(clients)]
+		blockCollector := collector.NewBlockCollector(client, 100.0, logger)
+		fetcher := worker.NewBlockFetcher(logger, blockCollector, blockJobsChan, receiptJobChan)
+
+		go func(i int) {
+			defer wgWorkers.Done()
+			fetcher.ProcessBlocks(ctx)
+			logger.Debugf("Block Fetcher %d stopped", i)
+		}(i)
+	}
 
 	for i, client := range clients {
 		wg.Add(1)
@@ -48,26 +72,28 @@ func main() {
 
 		go func(client node.Provider, start, end uint64, clientNum int) {
 			defer wg.Done()
-			runJob(ctx, logger, client, start, end, batchSize, clientNum)
+			runMasterJob(ctx, logger, client, start, end, batchSize, clientNum, blockJobsChan)
 		}(client, clientStart, clientEnd, i)
 	}
 
 	// Ждем завершения ВСЕХ горутин
 	wg.Wait()
 	logger.Info("All jobs completed")
+	close(blockJobsChan)
+
+	wgWorkers.Wait()
+	logger.Info("All workers completed.")
 }
 
-func runJob(ctx context.Context, logger *logging.Logger, client node.Provider,
-	start, end, batchSize uint64, clientNum int) {
+func runMasterJob(ctx context.Context, logger *logging.Logger, client node.Provider,
+	start, end, batchSize uint64, clientNum int, blockJobCh chan<- uint64) {
 
-	blockCollector := collector.NewBlockCollector(client, 1, logger)
 	current := start
 
 	for current <= end {
-		// Проверяем, не отменен ли контекст
 		select {
 		case <-ctx.Done():
-			logger.Infof("Client %d: context canceled, stopping at block %d", clientNum, current)
+			logger.Infof("Master Job %d: context canceled.", clientNum)
 			return
 		default:
 		}
@@ -77,23 +103,11 @@ func runJob(ctx context.Context, logger *logging.Logger, client node.Provider,
 			batchEnd = end
 		}
 
-		batchBlocks := make([]uint64, 0, batchSize)
 		for b := current; b <= batchEnd; b++ {
-			batchBlocks = append(batchBlocks, b)
-		}
-
-		fetchedBlocks, err := blockCollector.FetchBlocksAndReceiptsBatch(ctx, batchBlocks)
-		if err != nil {
-			logger.Errorf("Client %d failed on blocks %d-%d: %v", clientNum, current, batchEnd, err)
-			// Решаем, продолжать ли при ошибках
-			if ctx.Err() != nil { // если контекст отменен - выходим
+			select {
+			case blockJobCh <- b:
+			case <-ctx.Done():
 				return
-			}
-		} else {
-			logger.Infof("Client %d success on blocks %d-%d", clientNum, current, batchEnd)
-			for j, block := range fetchedBlocks {
-				logger.Infof("Client %d: Block %d: Hash: %s Transactions: %v",
-					clientNum, batchBlocks[j], block.Hash, len(block.Transactions))
 			}
 		}
 
@@ -101,65 +115,54 @@ func runJob(ctx context.Context, logger *logging.Logger, client node.Provider,
 	}
 }
 
-// func main() {
-// 	var wg sync.WaitGroup
-// 	logger := logging.GetLogger()
-// 	logger.Info("Logger initialized successfully")
+// func runJob(ctx context.Context, logger *logging.Logger, client node.Provider,
+// 	start, end, batchSize uint64, clientNum int, rateLimit float64) {
+// 	blockCollector := collector.NewBlockCollector(client, rateLimit, logger)
+// 	current := start
 
-// 	cfg := models.GetConfig(logger)
-
-// 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-// 	defer stop()
-
-// 	clientsPool, err := fabricClient.NewProviderPool(cfg.ProviderHistorical, logger)
-// 	if err != nil {
-// 		logger.Fatalf("Failed to create consolidated provider pool: %v", err)
-// 	}
-// 	if len(cfg.ProviderHistorical) == 0 {
-// 		logger.Fatal("ProviderHistorical config is empty.")
-// 	}
-// 	totalLimiterRate := cfg.ProviderHistorical[0].Limiter
-
-// 	if totalLimiterRate <= 0 {
-// 		logger.Warnf("Limiter is set to %d. Using default safe rate of 5 batches/second.", totalLimiterRate)
-// 		totalLimiterRate = 5
-// 	}
-
-// 	blockCollector := collector.NewBlockCollector(clientsPool, totalLimiterRate, logger)
-
-// 	startBlock := uint64(20000000)
-// 	totalBatches := 10
-// 	batchSize := 5
-// 	for i := 0; i < totalBatches; i++ {
-
-// 		var blocksToFetch []uint64
-// 		for j := 0; j < batchSize; j++ {
-// 			blocksToFetch = append(blocksToFetch, startBlock+uint64(i*batchSize+j))
+// 	for current <= end {
+// 		// Проверяем, не отменен ли контекст
+// 		select {
+// 		case <-ctx.Done():
+// 			logger.Infof("Client %d: context canceled, stopping at block %d", clientNum, current)
+// 			return
+// 		default:
 // 		}
 
-// 		wg.Add(1)
-// 		go func(batchID int, blocks []uint64) {
-// 			defer wg.Done()
+// 		batchEnd := current + batchSize - 1
+// 		if batchEnd > end {
+// 			batchEnd = end
+// 		}
 
-// 			ctxTimeout, cancel := context.WithTimeout(ctx, 15*time.Second)
-// 			defer cancel()
+// 		batchBlocks := make([]uint64, 0, batchSize)
+// 		for b := current; b <= batchEnd; b++ {
+// 			batchBlocks = append(batchBlocks, b)
+// 		}
 
-// 			logger.Debugf("Batch %d: Requesting blocks %v", batchID, blocks)
+// 		delay := time.Duration(1.0 / rateLimit * float64(time.Second))
+// 		select {
+// 		case <-ctx.Done():
+// 			logger.Infof("Client %d: context canceled during delay.", clientNum)
+// 			return
+// 		case <-time.After(delay):
+// 			// Продолжаем работу
+// 		}
 
-// 			fetchedBlocks, err := blockCollector.PostBatch(ctxTimeout, blocks)
-
-// 			if err != nil {
-// 				logger.Errorf("Batch %d failed: %v", batchID, err)
-// 			} else if len(fetchedBlocks) > 0 {
-// 				logger.Infof("Batch %d successful. Fetched %d blocks. (First block: %d, block data)", batchID, len(fetchedBlocks), fetchedBlocks[0].Number,  models.Block.Transactions)
+// 		fetchedBlocks, err := blockCollector.FetchBlocksBatch(ctx, batchBlocks)
+// 		if err != nil {
+// 			logger.Errorf("Client %d failed on blocks %d-%d: %v", clientNum, current, batchEnd, err)
+// 			// Решаем, продолжать ли при ошибках
+// 			if ctx.Err() != nil { // если контекст отменен - выходим
+// 				return
 // 			}
-// 		}(i+1, blocksToFetch)
+// 		} else {
+// 			logger.Infof("Client %d success on blocks %d-%d", clientNum, current, batchEnd)
+// 			for j, block := range fetchedBlocks {
+// 				logger.Infof("Client %d: Block %d: Hash: %s Transactions: %v",
+// 					clientNum, batchBlocks[j], block.Hash, len(block.Transactions))
+// 			}
+// 		}
+
+// 		current = batchEnd + 1
 // 	}
-
-// 	// Ждем завершения всех горутин (основная часть теста)
-// 	wg.Wait()
-// 	logger.Info("All batch load test goroutines finished.")
-
-// 	<-ctx.Done()
-// 	logger.Info("Shutdown signal received, stopping services...")
-//}
+// }
