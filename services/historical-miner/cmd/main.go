@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 const (
@@ -59,6 +60,19 @@ func main() {
 		}(i)
 	}
 
+	for i := 0; i < NUM_BLOCK_RECEIPT_PROCESSORS; i++ {
+		wgWorkers.Add(1)
+		clients := clients[i%len(clients)]
+
+		receiptCollector := collector.NewBlockCollector(clients, RECEIPT_RATE_LIMIT, logger)
+		processor := worker.NewReceiptProcessor(logger, *receiptCollector, receiptJobChan)
+		go func(i int) {
+			defer wgWorkers.Done()
+			processor.ProcessReceipts(ctx)
+			logger.Debugf("ReceiptProcessor %d stopped", i)
+		}(i)
+	}
+
 	for i, client := range clients {
 		wg.Add(1)
 
@@ -102,6 +116,8 @@ func runMasterJob(ctx context.Context, logger *logging.Logger, client node.Provi
 		if batchEnd > end {
 			batchEnd = end
 		}
+
+		time.Sleep(1 * time.Second)
 
 		for b := current; b <= batchEnd; b++ {
 			select {
