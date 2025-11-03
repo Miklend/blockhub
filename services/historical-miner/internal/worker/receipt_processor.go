@@ -2,33 +2,38 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"lib/blocks/collector"
-	_ "lib/clients/broker"
+	"lib/clients/broker"
 	"lib/models"
 	"lib/utils/logging"
 	"time"
 )
 
 const OUTPUT_FILE = "Block_new.json"
+const maxKafkaRetries = 3
+const kafkaRetryDelay = 500 * time.Millisecond
+const topicKafka = "blocks"
 
 type ReceiptProcessor struct {
-	logger    *logging.Logger
-	collector collector.BlockCollector
-	jobsChan  <-chan *models.Block
-	//kafkaClient broker.BrokerClient  //канал отправляющий полностью загруженные блоки
+	logger      *logging.Logger
+	collector   collector.BlockCollector
+	jobsChan    <-chan *models.Block
+	kafkaClient broker.BrokerClient
 }
 
 func NewReceiptProcessor(
 	logger *logging.Logger,
 	collector collector.BlockCollector,
 	jobs <-chan *models.Block,
-	//kafkaClient broker.BrokerClient,
+	kafkaClient broker.BrokerClient,
 ) *ReceiptProcessor {
 	return &ReceiptProcessor{
-		logger:    logger,
-		collector: collector,
-		jobsChan:  jobs,
-		//kafkaClient: kafkaClient,
+		logger:      logger,
+		collector:   collector,
+		jobsChan:    jobs,
+		kafkaClient: kafkaClient,
 	}
 }
 
@@ -89,10 +94,49 @@ func (p *ReceiptProcessor) ProcessReceipts(ctx context.Context) {
 			p.logger.Infof("SUCCESSFULLY PROCESSED: Block %d is complete. Total Transactions: %d.",
 				blockNumber, len(blockData.Transactions))
 
+			data, err := json.Marshal(blockData)
+			if err != nil {
+				p.logger.Errorf("failed to serialize block %s: %v", blockData.Hash, err)
+				continue
+			}
+			p.sendWithRetry(ctx, blockNumber, data)
 		case <-ctx.Done():
 			p.logger.Info("Receipt Processor received shutdown signal, stopping")
 			return
 		}
 
 	}
+}
+
+func (p *ReceiptProcessor) sendWithRetry(ctx context.Context, blockNumber uint64, data []byte) {
+	var err error
+	key := []byte(fmt.Sprintf("%d", blockNumber))
+
+	m := models.MessageBroker{
+		Key:   key,
+		Value: data,       // Используем сериализованные данные
+		Topic: topicKafka, // Указываем топик
+	}
+	for attempt := 1; attempt <= maxKafkaRetries; attempt++ {
+		// Отправка в Kafka
+		err = p.kafkaClient.SendMessage(ctx, m)
+
+		if err == nil {
+			p.logger.Infof("Block %s sent to Kafka successfully (attempt %d)", string(m.Key), attempt)
+			return
+		}
+
+		p.logger.Warnf("Failed to send block %s to Kafka (attempt %d/%d): %v", string(m.Key), attempt, maxKafkaRetries, err)
+
+		if attempt < maxKafkaRetries {
+			select {
+			case <-ctx.Done():
+				p.logger.Warnf("Context cancelled during Kafka retry for block %s", string(m.Key))
+				return
+			case <-time.After(kafkaRetryDelay):
+				// Ждем перед следующей попыткой
+			}
+		}
+	}
+	p.logger.Errorf("FATAL: Failed to send block %s to Kafka after %d attempts. DROPPING MESSAGE.", string(m.Key), maxKafkaRetries)
 }

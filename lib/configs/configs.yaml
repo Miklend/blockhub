@@ -28,6 +28,20 @@ provider_historical:
     num_clients: 1
     limiter: 2
     api_key: "c6y-mpgnFFVPAVe555pdx"
+  - provider_type: "alchemy"
+    network_name: "ethereum"
+    base_url: "https://eth-mainnet.g.alchemy.com/v2/"
+    max_retries: 5
+    num_clients: 1
+    limiter: 2
+    api_key: "ivmb1MEkJE1UbsFdoXElW"
+  - provider_type: "alchemy"
+    network_name: "ethereum"
+    base_url: "https://eth-mainnet.g.alchemy.com/v2/"
+    max_retries: 5
+    num_clients: 1
+    limiter: 2
+    api_key: "N3iSDROau0dKEV6eLwP28"
 
 provider_realtime: 
   provider_type: "alchemy" 

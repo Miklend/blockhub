@@ -1,7 +1,7 @@
 package main
 
 import (
-	worker "blockhub/services/historical-miner/internal"
+	worker "blockhub/services/historical-miner/internal/worker"
 	"context"
 	"lib/blocks/collector"
 	fabricClient "lib/clients/fabric_client"
@@ -37,7 +37,7 @@ func main() {
 
 	// Параметры
 	startBlock := uint64(23000000)
-	endBlock := uint64(23000029)
+	endBlock := uint64(23000019)
 	batchSize := uint64(10) // уменьшаем для теста
 
 	// Правильное разделение на клиентов
@@ -63,9 +63,9 @@ func main() {
 	for i := 0; i < NUM_BLOCK_RECEIPT_PROCESSORS; i++ {
 		wgWorkers.Add(1)
 		clients := clients[i%len(clients)]
-
+		kafkaClient := fabricClient.NewBroker(cfg.Broker, logger)
 		receiptCollector := collector.NewBlockCollector(clients, RECEIPT_RATE_LIMIT, logger)
-		processor := worker.NewReceiptProcessor(logger, *receiptCollector, receiptJobChan)
+		processor := worker.NewReceiptProcessor(logger, *receiptCollector, receiptJobChan, kafkaClient)
 		go func(i int) {
 			defer wgWorkers.Done()
 			processor.ProcessReceipts(ctx)
@@ -117,7 +117,7 @@ func runMasterJob(ctx context.Context, logger *logging.Logger, client node.Provi
 			batchEnd = end
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(50 * time.Millisecond)
 
 		for b := current; b <= batchEnd; b++ {
 			select {
