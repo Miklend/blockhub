@@ -32,8 +32,3 @@ func (bc *BlockCollector) Client() node.Provider {
 func (bc *BlockCollector) Logger() *logging.Logger {
 	return bc.logger
 }
-
-// func (bc *BlockCollector) GetNextClient() node.Provider {
-// 	current := atomic.AddUint64(&bc.clientsCount, 1)
-// 	return bc.clients[(current-1)%uint64(len(bc.clients))]
-// }

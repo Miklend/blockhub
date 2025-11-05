@@ -32,7 +32,7 @@ func NewBlockTransfer(logger *logging.Logger, kafkaClient broker.BrokerClient) n
 }
 
 // TransferBlocks слушает канал передачи блоков и отправляет их в Kafka
-func (bt *BlockTransfer) TransferBlocks(ctx context.Context, in <-chan *models.Block) error {
+func (bt *BlockTransfer) TransferBlocks(ctx context.Context, in <-chan *models.BlockDTO) error {
 	for {
 		select {
 		case <-ctx.Done():
