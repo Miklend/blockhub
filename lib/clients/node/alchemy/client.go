@@ -7,6 +7,7 @@ import (
 	"lib/clients/node"
 	"lib/models"
 	"lib/utils/logging"
+	"time"
 
 	"github.com/ethereum/go-ethereum/rpc"
 )
@@ -110,6 +111,7 @@ func (a *alchemyClient) SubscribeBlockWithReceipts(
 
 	go func() {
 		defer close(blockCh)
+		const maxRetries = 5
 
 		for msg := range internalCh {
 			select {
@@ -118,21 +120,40 @@ func (a *alchemyClient) SubscribeBlockWithReceipts(
 			default:
 			}
 
+			var block models.BlockDTO
+			var receipts []models.ReceiptDTO
+
 			numberHex, ok := msg["number"].(string)
 			if !ok {
 				a.logger.Warn("no number field in newHeads message")
 				continue
 			}
+			for attempt := 1; attempt < maxRetries; attempt++ {
+				block, err = a.BlockByNumber(ctx, numberHex)
+				if err != nil {
+					a.logger.Errorf("Block %d attempt %d/%d failed: %v", numberHex, attempt, maxRetries, err)
+					goto retry
+				}
 
-			block, err := a.BlockByNumber(ctx, numberHex)
-			if err != nil {
-				a.logger.Errorf("fetching block %s: %v", numberHex, err)
-				continue
+				receipts, err = a.ReceiptByBlockNumber(ctx, numberHex)
+				if err != nil {
+					a.logger.Errorf("Receipts %d attempt %d/%d failed: %v", numberHex, attempt, maxRetries, err)
+					goto retry
+				}
+
+				break
+			retry:
+				if attempt < maxRetries {
+					time.Sleep(time.Duration(attempt) * 1 * time.Second)
+				} else {
+					err = fmt.Errorf("fetch failed after %d attempts", maxRetries)
+				}
 			}
 
-			receipts, err := a.ReceiptByBlockNumber(ctx, numberHex)
 			if err != nil {
-				a.logger.Errorf("fetching receipts for block %s: %v", numberHex, err)
+				a.logger.Errorf("CRIT: Failed to collect block/receipts %s after all attempts", numberHex)
+
+				//Тут будет логика отправки в исторический
 				continue
 			}
 
