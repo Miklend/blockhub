@@ -1,15 +1,16 @@
 package metrics
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"lib/models"
 	"math/big"
+	"strconv"
 	"strings"
+	"time"
 )
 
-// NewBlockFromJSON парсит сырые JSON блока и квитанций в удобную модель models.Block
+// NewBlockFromJSON парсит сырые JSON блока и квитанций в models.Block
 func NewBlockFromJSON(blockRaw json.RawMessage, receiptsRaw json.RawMessage) models.Block {
 	var rb map[string]interface{}
 	if err := json.Unmarshal(blockRaw, &rb); err != nil {
@@ -19,29 +20,30 @@ func NewBlockFromJSON(blockRaw json.RawMessage, receiptsRaw json.RawMessage) mod
 
 	var rcs []map[string]interface{}
 	if err := json.Unmarshal(receiptsRaw, &rcs); err != nil {
-		fmt.Printf("failed to unmarshal receipt JSON: %v\n", err)
+		fmt.Printf("failed to unmarshal receipts JSON: %v\n", err)
 		rcs = []map[string]interface{}{}
 	}
 
 	blk := models.Block{
-		BaseFeePerGas:    parseString(rb["baseFeePerGas"]),
-		Difficulty:       parseString(rb["difficulty"]),
-		ExtraData:        decodeToHex(rb["extraData"]),
-		GasLimit:         parseUint64(rb["gasLimit"]),
-		GasUsed:          parseUint64(rb["gasUsed"]),
 		Hash:             parseString(rb["hash"]),
-		LogsBloom:        decodeToHex(rb["logsBloom"]),
-		Miner:            parseString(rb["miner"]),
-		MixHash:          parseString(rb["mixHash"]),
-		Nonce:            parseUint64(rb["nonce"]),
-		Number:           parseUint64(rb["number"]),
+		Number:           parseUint(rb["number"]),
 		ParentHash:       parseString(rb["parentHash"]),
-		ReceiptsRoot:     parseString(rb["receiptsRoot"]),
+		Nonce:            parseUint(rb["nonce"]),
 		Sha3Uncles:       parseString(rb["sha3Uncles"]),
-		Size:             parseUint64(rb["size"]),
-		StateRoot:        parseString(rb["stateRoot"]),
-		Timestamp:        parseUint64(rb["timestamp"]),
+		LogsBloom:        parseString(rb["logsBloom"]),
 		TransactionsRoot: parseString(rb["transactionsRoot"]),
+		StateRoot:        parseString(rb["stateRoot"]),
+		ReceiptsRoot:     parseString(rb["receiptsRoot"]),
+		Miner:            parseString(rb["miner"]),
+		Difficulty:       parseString(rb["difficulty"]),
+		TotalDifficulty:  parseString(rb["totalDifficulty"]),
+		Size:             parseUint(rb["size"]),
+		ExtraData:        parseString(rb["extraData"]),
+		GasLimit:         parseUint(rb["gasLimit"]),
+		GasUsed:          parseUint(rb["gasUsed"]),
+		BaseFeePerGas:    parseOptionalUint(rb["baseFeePerGas"]),
+		Timestamp:        parseTime(rb["timestamp"]),
+		MixHash:          parseString(rb["mixHash"]),
 	}
 
 	// Uncles
@@ -51,104 +53,85 @@ func NewBlockFromJSON(blockRaw json.RawMessage, receiptsRaw json.RawMessage) mod
 		}
 	}
 
-	// Транзакции
+	// Transactions
 	if txs, ok := rb["transactions"].([]interface{}); ok {
 		for i, txRaw := range txs {
-			txMap := txRaw.(map[string]interface{})
+			txMap, ok := txRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
 			tx := models.Tx{
-				From:                 parseString(txMap["from"]),
-				Gas:                  parseUint64(txMap["gas"]),
-				GasPrice:             parseString(txMap["gasPrice"]),
-				MaxFeePerGas:         parseString(txMap["maxFeePerGas"]),
-				MaxPriorityFeePerGas: parseString(txMap["maxPriorityFeePerGas"]),
 				Hash:                 parseString(txMap["hash"]),
-				Input:                decodeToHex(txMap["input"]),
-				Nonce:                parseUint64(txMap["nonce"]),
-				To:                   parseString(txMap["to"]),
-				TransactionIndex:     parseUint64(txMap["transactionIndex"]),
+				BlockHash:            parseString(txMap["blockHash"]),
+				BlockNumber:          parseUint(txMap["blockNumber"]),
+				TransactionIndex:     parseUint(txMap["transactionIndex"]),
+				From:                 parseString(txMap["from"]),
+				To:                   parseOptionalString(txMap["to"]),
 				Value:                parseString(txMap["value"]),
-				Type:                 uint8(parseUint64(txMap["type"])),
-				ChainID:              parseString(txMap["chainId"]),
+				Gas:                  parseUint(txMap["gas"]),
+				GasPrice:             parseUint(txMap["gasPrice"]),
+				Input:                parseString(txMap["input"]),
+				Nonce:                parseUint(txMap["nonce"]),
+				Type:                 parseUint(txMap["type"]),
+				MaxFeePerGas:         parseOptionalUint(txMap["maxFeePerGas"]),
+				MaxPriorityFeePerGas: parseOptionalUint(txMap["maxPriorityFeePerGas"]),
+				ChainID:              parseUint(txMap["chainId"]),
 				V:                    parseString(txMap["v"]),
 				R:                    parseString(txMap["r"]),
 				S:                    parseString(txMap["s"]),
+				AccessList:           parseString(txMap["accessList"]),
+				BlockTimestamp:       blk.Timestamp,
 			}
 
-			// Квитанция
+			// Привязываем квитанцию
 			if i < len(rcs) {
-				tx.Receipt = convertReceiptJSON(rcs[i])
+				tx.Receipt = convertReceiptJSON(rcs[i], blk.Timestamp)
 			}
 
-			blk.Transactions = append(blk.Transactions, tx)
+			blk.Transactions = append(blk.Transactions, tx.Hash)
 		}
 	}
 
 	return blk
 }
 
-// вспомогательные функции
-func parseString(v interface{}) string {
-	if v == nil {
-		return ""
-	}
-	return fmt.Sprintf("%v", v)
-}
-
-func parseUint64(v interface{}) uint64 {
-	if v == nil {
-		return 0
-	}
-	switch val := v.(type) {
-	case string:
-		n, _ := new(big.Int).SetString(strings.Replace(val, "0x", "", 1), 16)
-		if n != nil {
-			return n.Uint64()
-		}
-	case float64:
-		return uint64(val)
-	}
-	return 0
-}
-
-func decodeToHex(v interface{}) string {
-	if v == nil {
-		return ""
-	}
-	switch val := v.(type) {
-	case string:
-		return hex.EncodeToString([]byte(val))
-	default:
-		return fmt.Sprintf("%v", val)
-	}
-}
-
-func convertReceiptJSON(r map[string]interface{}) *models.Receipt {
+// convertReceiptJSON преобразует JSON-квитанцию в models.Receipt
+func convertReceiptJSON(r map[string]interface{}, ts time.Time) *models.Receipt {
 	rec := &models.Receipt{
-		ContractAddress:   parseString(r["contractAddress"]),
-		CumulativeGasUsed: parseUint64(r["cumulativeGasUsed"]),
-		EffectiveGasPrice: parseString(r["effectiveGasPrice"]),
+		TransactionHash:   parseString(r["transactionHash"]),
+		TransactionIndex:  parseUint(r["transactionIndex"]),
+		BlockHash:         parseString(r["blockHash"]),
+		BlockNumber:       parseUint(r["blockNumber"]),
 		From:              parseString(r["from"]),
-		GasUsed:           parseUint64(r["gasUsed"]),
-		LogsBloom:         decodeToHex(r["logsBloom"]),
-		Status:            parseUint64(r["status"]),
-		Type:              uint8(parseUint64(r["type"])),
-	}
-
-	if to, ok := r["to"]; ok {
-		rec.To = parseString(to)
+		To:                parseOptionalString(r["to"]),
+		ContractAddress:   parseOptionalString(r["contractAddress"]),
+		CumulativeGasUsed: parseUint(r["cumulativeGasUsed"]),
+		GasUsed:           parseUint(r["gasUsed"]),
+		EffectiveGasPrice: parseUint(r["effectiveGasPrice"]),
+		Status:            parseUint(r["status"]),
+		LogsBloom:         parseString(r["logsBloom"]),
+		BlockTimestamp:    ts,
 	}
 
 	// Логи
 	if logs, ok := r["logs"].([]interface{}); ok {
 		for _, l := range logs {
-			lMap := l.(map[string]interface{})
+			lMap, ok := l.(map[string]interface{})
+			if !ok {
+				continue
+			}
 			rec.Logs = append(rec.Logs, models.Log{
-				Address:         parseString(lMap["address"]),
-				Topics:          parseStringSlice(lMap["topics"]),
-				Data:            decodeToHex(lMap["data"]),
-				TransactionHash: parseString(lMap["transactionHash"]),
-				LogIndex:        parseUint64(lMap["logIndex"]),
-				Removed:         lMap["removed"].(bool),
+				BlockNumber:      parseUint(lMap["blockNumber"]),
+				BlockHash:        parseString(lMap["blockHash"]),
+				TransactionHash:  parseString(lMap["transactionHash"]),
+				TransactionIndex: parseUint(lMap["transactionIndex"]),
+				LogIndex:         parseUint(lMap["logIndex"]),
+				Address:          parseString(lMap["address"]),
+				Data:             parseString(lMap["data"]),
+				Topics:           parseStringSlice(lMap["topics"]),
+				BlockTimestamp:   ts,
+				Topic0:           firstTopic(lMap["topics"]),
 			})
 		}
 	}
@@ -156,16 +139,96 @@ func convertReceiptJSON(r map[string]interface{}) *models.Receipt {
 	return rec
 }
 
+func parseString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", v)
+}
+
+func parseOptionalString(v interface{}) *string {
+	if v == nil {
+		return nil
+	}
+	s := parseString(v)
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func parseUint(v interface{}) uint {
+	if v == nil {
+		return 0
+	}
+	switch val := v.(type) {
+	case float64:
+		return uint(val)
+	case json.Number:
+		n, _ := val.Int64()
+		return uint(n)
+	case string:
+		// поддерживаем 0x-формат
+		s := strings.TrimPrefix(val, "0x")
+		if s == "" {
+			return 0
+		}
+		n := new(big.Int)
+		n.SetString(s, 16)
+		return uint(n.Uint64())
+	default:
+		return 0
+	}
+}
+
+func parseOptionalUint(v interface{}) *uint {
+	u := parseUint(v)
+	if u == 0 {
+		return nil
+	}
+	return &u
+}
+
+func parseTime(v interface{}) time.Time {
+	switch val := v.(type) {
+	case float64:
+		return time.Unix(int64(val), 0).UTC()
+	case string:
+		// timestamp может быть в hex, decimal или RFC3339
+		if strings.HasPrefix(val, "0x") {
+			n := new(big.Int)
+			n.SetString(strings.TrimPrefix(val, "0x"), 16)
+			return time.Unix(n.Int64(), 0).UTC()
+		}
+		if t, err := strconv.ParseInt(val, 10, 64); err == nil {
+			return time.Unix(t, 0).UTC()
+		}
+		if t, err := time.Parse(time.RFC3339, val); err == nil {
+			return t.UTC()
+		}
+	}
+	return time.Time{}
+}
+
 func parseStringSlice(v interface{}) []string {
 	if v == nil {
 		return nil
 	}
-	if arr, ok := v.([]interface{}); ok {
-		var res []string
-		for _, a := range arr {
-			res = append(res, parseString(a))
-		}
-		return res
+	arr, ok := v.([]interface{})
+	if !ok {
+		return nil
 	}
-	return nil
+	out := make([]string, 0, len(arr))
+	for _, a := range arr {
+		out = append(out, parseString(a))
+	}
+	return out
+}
+
+func firstTopic(v interface{}) string {
+	topics := parseStringSlice(v)
+	if len(topics) > 0 {
+		return topics[0]
+	}
+	return ""
 }
