@@ -24,14 +24,7 @@ func (r *LogRepository) FetchLogsByTransaction(table string, txHash string) ([]m
 	// Конвертируем результаты в модели Log
 	logs := make([]models.Log, len(result))
 	for i, row := range result {
-		logs[i] = models.Log{
-			Address:         row.Address,
-			Topics:          row.Topics,
-			Data:            row.Data,
-			TransactionHash: row.TransactionHash,
-			LogIndex:        uint64(row.LogIndex),
-			Removed:         false, // По умолчанию false
-		}
+		logs[i] = logRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d logs for transaction %s", len(logs), txHash)
@@ -54,14 +47,7 @@ func (r *LogRepository) FetchLogsByBlock(table string, blockHash string) ([]mode
 	// Конвертируем результаты в модели Log
 	logs := make([]models.Log, len(result))
 	for i, row := range result {
-		logs[i] = models.Log{
-			Address:         row.Address,
-			Topics:          row.Topics,
-			Data:            row.Data,
-			TransactionHash: row.TransactionHash,
-			LogIndex:        uint64(row.LogIndex),
-			Removed:         false, // По умолчанию false
-		}
+		logs[i] = logRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d logs for block %s", len(logs), blockHash)
@@ -84,14 +70,7 @@ func (r *LogRepository) FetchLogsByBlockNumber(table string, blockNumber uint64)
 	// Конвертируем результаты в модели Log
 	logs := make([]models.Log, len(result))
 	for i, row := range result {
-		logs[i] = models.Log{
-			Address:         row.Address,
-			Topics:          row.Topics,
-			Data:            row.Data,
-			TransactionHash: row.TransactionHash,
-			LogIndex:        uint64(row.LogIndex),
-			Removed:         false, // По умолчанию false
-		}
+		logs[i] = logRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d logs for block number %d", len(logs), blockNumber)
@@ -114,14 +93,7 @@ func (r *LogRepository) FetchLogsByAddress(table string, address string, limit i
 	// Конвертируем результаты в модели Log
 	logs := make([]models.Log, len(result))
 	for i, row := range result {
-		logs[i] = models.Log{
-			Address:         row.Address,
-			Topics:          row.Topics,
-			Data:            row.Data,
-			TransactionHash: row.TransactionHash,
-			LogIndex:        uint64(row.LogIndex),
-			Removed:         false, // По умолчанию false
-		}
+		logs[i] = logRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d logs for address %s", len(logs), address)
@@ -144,14 +116,7 @@ func (r *LogRepository) FetchLogsByTopic(table string, topic string, limit int) 
 	// Конвертируем результаты в модели Log
 	logs := make([]models.Log, len(result))
 	for i, row := range result {
-		logs[i] = models.Log{
-			Address:         row.Address,
-			Topics:          row.Topics,
-			Data:            row.Data,
-			TransactionHash: row.TransactionHash,
-			LogIndex:        uint64(row.LogIndex),
-			Removed:         false, // По умолчанию false
-		}
+		logs[i] = logRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d logs for topic %s", len(logs), topic)
@@ -190,8 +155,7 @@ func (r *LogRepository) FetchLogsByTopic0(table string, topic0 string, limit int
 			Topics:          row.Topics,
 			Data:            row.Data,
 			TransactionHash: row.TransactionHash,
-			LogIndex:        uint64(row.LogIndex),
-			Removed:         false, // По умолчанию false
+			LogIndex:        uint(row.LogIndex),
 		}
 	}
 
@@ -231,11 +195,34 @@ func (r *LogRepository) FetchLogsByAddressAndTopic(table string, address string,
 			Topics:          row.Topics,
 			Data:            row.Data,
 			TransactionHash: row.TransactionHash,
-			LogIndex:        uint64(row.LogIndex),
-			Removed:         false, // По умолчанию false
+			LogIndex:        uint(row.LogIndex),
 		}
 	}
 
 	r.Logger.Debugf("Successfully fetched %d logs for address %s and topic %s", len(logs), address, topic)
 	return logs, nil
+}
+
+func logRowToModel(row rowtypes.LogRow) models.Log {
+	return models.Log{
+		BlockNumber:      uint(row.BlockNumber),
+		BlockHash:        row.BlockHash,
+		TransactionHash:  row.TransactionHash,
+		TransactionIndex: uint(row.TransactionIndex),
+		LogIndex:         uint(row.LogIndex),
+		Address:          row.Address,
+		Data:             row.Data,
+		Topics:           copyStringSlice(row.Topics),
+		BlockTimestamp:   row.BlockTimestamp,
+		Topic0:           row.Topic0,
+	}
+}
+
+func copyStringSlice(src []string) []string {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make([]string, len(src))
+	copy(dst, src)
+	return dst
 }

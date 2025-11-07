@@ -2,7 +2,6 @@ package receipt
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	clientsDB "lib/clients/db"
@@ -33,7 +32,7 @@ func (r *ReceiptRepository) InsertReceipt(table string, receipt models.Receipt) 
 	txIndex := uint32(0)
 	blockHash := ""
 	blockNumber := uint64(0)
-	blockTimestamp := uint64(0)
+	blockTimestamp := time.Time{}
 
 	row := convertReceiptToClickHouseRow(receipt, txHash, txIndex, blockHash, blockNumber, blockTimestamp)
 
@@ -78,7 +77,7 @@ func (r *ReceiptRepository) InsertReceipts(table string, receipts []models.Recei
 	// Используем пустые значения, если данные недоступны (может привести к ошибкам)
 	blockHash := ""
 	blockNumber := uint64(0)
-	blockTimestamp := uint64(0)
+	blockTimestamp := time.Time{}
 
 	for i, receipt := range receipts {
 		// Используем пустые значения для txHash и txIndex
@@ -108,80 +107,30 @@ func (r *ReceiptRepository) InsertReceiptsFromBlock(table string, block models.B
 		return nil
 	}
 
-	ctx := context.Background()
-
-	batch, err := r.Client.PrepareBatch(ctx, "INSERT INTO "+table+" VALUES")
-	if err != nil {
-		r.Logger.Errorf("Failed to prepare batch for receipts from block insert: %v", err)
-		return err
-	}
-
-	for i, tx := range block.Transactions {
-		if tx.Receipt != nil {
-			row := convertReceiptToClickHouseRow(*tx.Receipt, tx.Hash, uint32(i), block.Hash, block.Number, block.Timestamp)
-			err = batch.Append(row...)
-			if err != nil {
-				r.Logger.Errorf("Failed to append receipt for transaction %s to batch: %v", tx.Hash, err)
-				return err
-			}
-		}
-	}
-
-	err = batch.Send()
-	if err != nil {
-		r.Logger.Errorf("Failed to send batch for receipts from block insert: %v", err)
-		return err
-	}
-
-	r.Logger.Debugf("Successfully inserted receipts from block %s", block.Hash)
+	r.Logger.Warn("InsertReceiptsFromBlock: block.Transactions does not include receipt payloads; skipping insertion")
 	return nil
 }
 
 // convertReceiptToClickHouseRow конвертирует Receipt в строку для вставки в ClickHouse
-func convertReceiptToClickHouseRow(receipt models.Receipt, txHash string, txIndex uint32, blockHash string, blockNumber uint64, blockTimestamp uint64) []interface{} {
-	timestamp := time.Unix(int64(blockTimestamp), 0)
-
-	// Конвертируем to в указатель
-	var to *string
-	if receipt.To != "" {
-		to = &receipt.To
+func convertReceiptToClickHouseRow(receipt models.Receipt, txHash string, txIndex uint32, blockHash string, blockNumber uint64, blockTimestamp time.Time) []interface{} {
+	timestamp := blockTimestamp
+	if timestamp.IsZero() {
+		timestamp = receipt.BlockTimestamp
 	}
-
-	// Конвертируем contractAddress в указатель
-	var contractAddress *string
-	if receipt.ContractAddress != "" {
-		contractAddress = &receipt.ContractAddress
-	}
-
-	// Конвертируем effectiveGasPrice
-	effectiveGasPrice, _ := parseHexToUint64(receipt.EffectiveGasPrice)
 
 	return []interface{}{
-		txHash,                    // transaction_hash FixedString(66)
-		txIndex,                   // transaction_index UInt32
-		blockHash,                 // block_hash FixedString(66)
-		blockNumber,               // block_number UInt64
-		receipt.From,              // from FixedString(42)
-		to,                        // to Nullable(FixedString(42))
-		contractAddress,           // contract_address Nullable(FixedString(42))
-		receipt.CumulativeGasUsed, // cumulative_gas_used UInt64
-		receipt.GasUsed,           // gas_used UInt64
-		effectiveGasPrice,         // effective_gas_price UInt64
-		uint8(receipt.Status),     // status UInt8
-		receipt.LogsBloom,         // logs_bloom String
-		timestamp,                 // block_timestamp DateTime64(3, 'UTC')
-		// date автоматически вычисляется из block_timestamp
+		txHash,
+		txIndex,
+		blockHash,
+		blockNumber,
+		receipt.From,
+		receipt.To,
+		receipt.ContractAddress,
+		uint64(receipt.CumulativeGasUsed),
+		uint64(receipt.GasUsed),
+		uint64(receipt.EffectiveGasPrice),
+		uint8(receipt.Status),
+		receipt.LogsBloom,
+		timestamp,
 	}
-}
-
-// Вспомогательные функции для парсинга
-func parseHexToUint64(hexStr string) (uint64, error) {
-	if hexStr == "" {
-		return 0, nil
-	}
-	// Убираем префикс 0x если есть
-	if len(hexStr) > 2 && hexStr[:2] == "0x" {
-		hexStr = hexStr[2:]
-	}
-	return strconv.ParseUint(hexStr, 16, 64)
 }

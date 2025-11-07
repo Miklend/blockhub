@@ -3,7 +3,6 @@ package block
 import (
 	"context"
 	"strconv"
-	"time"
 
 	clientsDB "lib/clients/db"
 	"lib/models"
@@ -92,70 +91,66 @@ func (r *BlockRepository) InsertBlocks(table string, blocks []models.Block) erro
 
 // convertBlockToClickHouseRow конвертирует Block в строку для вставки в ClickHouse
 func convertBlockToClickHouseRow(block models.Block) []interface{} {
-	// Конвертируем timestamp из Unix в time.Time
-	timestamp := time.Unix(int64(block.Timestamp), 0)
-
 	// Извлекаем хеши транзакций
-	txHashes := make([]string, len(block.Transactions))
-	for i, tx := range block.Transactions {
-		txHashes[i] = tx.Hash
-	}
+	txHashes := copyStringSlice(block.Transactions)
 
 	// Конвертируем baseFeePerGas если есть
 	var baseFeePerGas *uint64
-	if block.BaseFeePerGas != "" {
-		if val, err := parseHexToUint64(block.BaseFeePerGas); err == nil {
-			baseFeePerGas = &val
-		}
+	if block.BaseFeePerGas != nil {
+		val := uint64(*block.BaseFeePerGas)
+		baseFeePerGas = &val
 	}
 
 	// Конвертируем difficulty и totalDifficulty
 	difficulty, _ := parseHexToUint256(block.Difficulty)
-	totalDifficulty := difficulty // В реальном проекте нужно вычислять
+	totalDifficulty, _ := parseHexToUint256(block.TotalDifficulty)
 
 	return []interface{}{
-		block.Hash,                     // hash
-		block.Number,                   // number
-		block.ParentHash,               // parent_hash
-		formatUint64ToHex(block.Nonce), // nonce
-		block.Sha3Uncles,               // sha3_uncles
-		block.LogsBloom,                // logs_bloom
-		block.TransactionsRoot,         // transactions_root
-		block.StateRoot,                // state_root
-		block.ReceiptsRoot,             // receipts_root
-		block.Miner,                    // miner
-		difficulty,                     // difficulty
-		totalDifficulty,                // total_difficulty
-		block.Size,                     // size
-		block.ExtraData,                // extra_data
-		block.GasLimit,                 // gas_limit
-		block.GasUsed,                  // gas_used
-		baseFeePerGas,                  // base_fee_per_gas
-		timestamp,                      // timestamp
-		block.MixHash,                  // mix_hash
-		txHashes,                       // transactions
-		block.Uncles,                   // uncles
-		timestamp,                      // date (MATERIALIZED)
+		block.Hash,                             // hash
+		uint64(block.Number),                   // number
+		block.ParentHash,                       // parent_hash
+		formatUint64ToHex(uint64(block.Nonce)), // nonce (String)
+		block.Sha3Uncles,                       // sha3_uncles
+		block.LogsBloom,                        // logs_bloom
+		block.TransactionsRoot,                 // transactions_root
+		block.StateRoot,                        // state_root
+		block.ReceiptsRoot,                     // receipts_root
+		block.Miner,                            // miner
+		difficulty,                             // difficulty
+		totalDifficulty,                        // total_difficulty
+		uint64(block.Size),                     // size
+		block.ExtraData,                        // extra_data
+		uint64(block.GasLimit),                 // gas_limit
+		uint64(block.GasUsed),                  // gas_used
+		baseFeePerGas,                          // base_fee_per_gas
+		block.Timestamp,                        // timestamp
+		block.MixHash,                          // mix_hash
+		txHashes,                               // transactions
+		copyStringSlice(block.Uncles),          // uncles
+		block.Timestamp,                        // date (MATERIALIZED)
 	}
 }
 
-// Вспомогательные функции для парсинга
-func parseHexToUint64(hexStr string) (uint64, error) {
+// Вспомогательные функции
+func parseHexToUint256(hexStr string) (string, error) {
 	if hexStr == "" {
-		return 0, nil
+		return "", nil
 	}
-	// Убираем префикс 0x если есть
 	if len(hexStr) > 2 && hexStr[:2] == "0x" {
 		hexStr = hexStr[2:]
 	}
-	return strconv.ParseUint(hexStr, 16, 64)
-}
-
-func parseHexToUint256(hexStr string) (string, error) {
-	// Для UInt256 в ClickHouse используем строку
 	return hexStr, nil
 }
 
 func formatUint64ToHex(n uint64) string {
 	return "0x" + strconv.FormatUint(n, 16)
+}
+
+func copyStringSlice(src []string) []string {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make([]string, len(src))
+	copy(dst, src)
+	return dst
 }

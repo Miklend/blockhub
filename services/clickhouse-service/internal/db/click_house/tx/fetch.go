@@ -2,8 +2,6 @@ package tx
 
 import (
 	"context"
-	"strconv"
-	"time"
 
 	"clickhouse-service/internal/db/click_house/rowtypes"
 	"lib/models"
@@ -28,40 +26,7 @@ func (r *TxRepository) FetchTx(table string, txHash string) (models.Tx, error) {
 
 	// Конвертируем результат в модель Tx
 	row := result[0]
-	tx := models.Tx{
-		Hash:             row.Hash,
-		From:             row.From,
-		Gas:              row.Gas,
-		GasPrice:         formatUint64ToHex(row.GasPrice),
-		Input:            row.Input,
-		Nonce:            row.Nonce,
-		TransactionIndex: uint64(row.TransactionIndex),
-		Value:            "0x" + row.Value,
-		Type:             row.Type,
-		V:                row.V,
-		R:                row.R,
-		S:                row.S,
-	}
-
-	// Конвертируем to если есть
-	if row.To != nil {
-		tx.To = *row.To
-	}
-
-	// Конвертируем maxFeePerGas если есть
-	if row.MaxFeePerGas != nil {
-		tx.MaxFeePerGas = formatUint64ToHex(*row.MaxFeePerGas)
-	}
-
-	// Конвертируем maxPriorityFeePerGas если есть
-	if row.MaxPriorityFeePerGas != nil {
-		tx.MaxPriorityFeePerGas = formatUint64ToHex(*row.MaxPriorityFeePerGas)
-	}
-
-	// Конвертируем chainID
-	if row.ChainID > 0 {
-		tx.ChainID = formatUint64ToHex(row.ChainID)
-	}
+	tx := txRowToModel(row)
 
 	r.Logger.Debugf("Successfully fetched transaction %s", tx.Hash)
 	return tx, nil
@@ -87,42 +52,7 @@ func (r *TxRepository) FetchTxs(table string, txHashes []string) ([]models.Tx, e
 	// Конвертируем результаты в модели Tx
 	txs := make([]models.Tx, len(result))
 	for i, row := range result {
-		tx := models.Tx{
-			Hash:             row.Hash,
-			From:             row.From,
-			Gas:              row.Gas,
-			GasPrice:         formatUint64ToHex(row.GasPrice),
-			Input:            row.Input,
-			Nonce:            row.Nonce,
-			TransactionIndex: uint64(row.TransactionIndex),
-			Value:            "0x" + row.Value,
-			Type:             row.Type,
-			V:                row.V,
-			R:                row.R,
-			S:                row.S,
-		}
-
-		// Конвертируем to если есть
-		if row.To != nil {
-			tx.To = *row.To
-		}
-
-		// Конвертируем maxFeePerGas если есть
-		if row.MaxFeePerGas != nil {
-			tx.MaxFeePerGas = formatUint64ToHex(*row.MaxFeePerGas)
-		}
-
-		// Конвертируем maxPriorityFeePerGas если есть
-		if row.MaxPriorityFeePerGas != nil {
-			tx.MaxPriorityFeePerGas = formatUint64ToHex(*row.MaxPriorityFeePerGas)
-		}
-
-		// Конвертируем chainID
-		if row.ChainID > 0 {
-			tx.ChainID = formatUint64ToHex(row.ChainID)
-		}
-
-		txs[i] = tx
+		txs[i] = txRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d transactions", len(txs))
@@ -145,38 +75,7 @@ func (r *TxRepository) FetchTxsByBlock(table string, blockHash string) ([]models
 	// Конвертируем результаты в модели Tx (аналогично FetchTxs)
 	txs := make([]models.Tx, len(result))
 	for i, row := range result {
-		tx := models.Tx{
-			Hash:             row.Hash,
-			From:             row.From,
-			Gas:              row.Gas,
-			GasPrice:         formatUint64ToHex(row.GasPrice),
-			Input:            row.Input,
-			Nonce:            row.Nonce,
-			TransactionIndex: uint64(row.TransactionIndex),
-			Value:            "0x" + row.Value,
-			Type:             row.Type,
-			V:                row.V,
-			R:                row.R,
-			S:                row.S,
-		}
-
-		if row.To != nil {
-			tx.To = *row.To
-		}
-
-		if row.MaxFeePerGas != nil {
-			tx.MaxFeePerGas = formatUint64ToHex(*row.MaxFeePerGas)
-		}
-
-		if row.MaxPriorityFeePerGas != nil {
-			tx.MaxPriorityFeePerGas = formatUint64ToHex(*row.MaxPriorityFeePerGas)
-		}
-
-		if row.ChainID > 0 {
-			tx.ChainID = formatUint64ToHex(row.ChainID)
-		}
-
-		txs[i] = tx
+		txs[i] = txRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d transactions for block %s", len(txs), blockHash)
@@ -199,38 +98,7 @@ func (r *TxRepository) FetchTxsByBlockNumber(table string, blockNumber uint64) (
 	// Конвертируем результаты в модели Tx (аналогично FetchTxs)
 	txs := make([]models.Tx, len(result))
 	for i, row := range result {
-		tx := models.Tx{
-			Hash:             row.Hash,
-			From:             row.From,
-			Gas:              row.Gas,
-			GasPrice:         formatUint64ToHex(row.GasPrice),
-			Input:            row.Input,
-			Nonce:            row.Nonce,
-			TransactionIndex: uint64(row.TransactionIndex),
-			Value:            "0x" + row.Value,
-			Type:             row.Type,
-			V:                row.V,
-			R:                row.R,
-			S:                row.S,
-		}
-
-		if row.To != nil {
-			tx.To = *row.To
-		}
-
-		if row.MaxFeePerGas != nil {
-			tx.MaxFeePerGas = formatUint64ToHex(*row.MaxFeePerGas)
-		}
-
-		if row.MaxPriorityFeePerGas != nil {
-			tx.MaxPriorityFeePerGas = formatUint64ToHex(*row.MaxPriorityFeePerGas)
-		}
-
-		if row.ChainID > 0 {
-			tx.ChainID = formatUint64ToHex(row.ChainID)
-		}
-
-		txs[i] = tx
+		txs[i] = txRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d transactions for block number %d", len(txs), blockNumber)
@@ -241,28 +109,7 @@ func (r *TxRepository) FetchTxsByBlockNumber(table string, blockNumber uint64) (
 func (r *TxRepository) FetchTxsByAddress(table string, address string, limit int) ([]models.Tx, error) {
 	ctx := context.Background()
 
-	var result []struct {
-		Hash                 string    `ch:"hash"`
-		BlockHash            string    `ch:"block_hash"`
-		BlockNumber          uint64    `ch:"block_number"`
-		TransactionIndex     uint32    `ch:"transaction_index"`
-		From                 string    `ch:"from"`
-		To                   *string   `ch:"to"`
-		Value                string    `ch:"value"`
-		Gas                  uint64    `ch:"gas"`
-		GasPrice             uint64    `ch:"gas_price"`
-		Input                string    `ch:"input"`
-		Nonce                uint64    `ch:"nonce"`
-		Type                 uint8     `ch:"type"`
-		MaxFeePerGas         *uint64   `ch:"max_fee_per_gas"`
-		MaxPriorityFeePerGas *uint64   `ch:"max_priority_fee_per_gas"`
-		ChainID              uint64    `ch:"chain_id"`
-		V                    string    `ch:"v"`
-		R                    string    `ch:"r"`
-		S                    string    `ch:"s"`
-		AccessList           string    `ch:"access_list"`
-		BlockTimestamp       time.Time `ch:"block_timestamp"`
-	}
+	var result []rowtypes.TxRow
 
 	query := "SELECT * FROM " + table + " WHERE from = ? OR to = ? ORDER BY block_timestamp DESC LIMIT ?"
 	err := r.Client.Select(ctx, &result, query, address, address, limit)
@@ -274,45 +121,58 @@ func (r *TxRepository) FetchTxsByAddress(table string, address string, limit int
 	// Конвертируем результаты в модели Tx (аналогично FetchTxs)
 	txs := make([]models.Tx, len(result))
 	for i, row := range result {
-		tx := models.Tx{
-			Hash:             row.Hash,
-			From:             row.From,
-			Gas:              row.Gas,
-			GasPrice:         formatUint64ToHex(row.GasPrice),
-			Input:            row.Input,
-			Nonce:            row.Nonce,
-			TransactionIndex: uint64(row.TransactionIndex),
-			Value:            "0x" + row.Value,
-			Type:             row.Type,
-			V:                row.V,
-			R:                row.R,
-			S:                row.S,
-		}
-
-		if row.To != nil {
-			tx.To = *row.To
-		}
-
-		if row.MaxFeePerGas != nil {
-			tx.MaxFeePerGas = formatUint64ToHex(*row.MaxFeePerGas)
-		}
-
-		if row.MaxPriorityFeePerGas != nil {
-			tx.MaxPriorityFeePerGas = formatUint64ToHex(*row.MaxPriorityFeePerGas)
-		}
-
-		if row.ChainID > 0 {
-			tx.ChainID = formatUint64ToHex(row.ChainID)
-		}
-
-		txs[i] = tx
+		txs[i] = txRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d transactions for address %s", len(txs), address)
 	return txs, nil
 }
 
-// formatUint64ToHex конвертирует uint64 в hex строку
-func formatUint64ToHex(n uint64) string {
-	return "0x" + strconv.FormatUint(n, 16)
+func txRowToModel(row rowtypes.TxRow) models.Tx {
+	tx := models.Tx{
+		Hash:             row.Hash,
+		BlockHash:        row.BlockHash,
+		BlockNumber:      uint(row.BlockNumber),
+		TransactionIndex: uint(row.TransactionIndex),
+		From:             row.From,
+		Value:            prefixHex(row.Value),
+		Gas:              uint(row.Gas),
+		GasPrice:         uint(row.GasPrice),
+		Input:            row.Input,
+		Nonce:            uint(row.Nonce),
+		Type:             uint(row.Type),
+		ChainID:          uint(row.ChainID),
+		V:                row.V,
+		R:                row.R,
+		S:                row.S,
+		AccessList:       row.AccessList,
+		BlockTimestamp:   row.BlockTimestamp,
+	}
+
+	if row.To != nil {
+		tx.To = row.To
+	}
+
+	tx.MaxFeePerGas = uintPtrFromUint64(row.MaxFeePerGas)
+	tx.MaxPriorityFeePerGas = uintPtrFromUint64(row.MaxPriorityFeePerGas)
+
+	return tx
+}
+
+func prefixHex(value string) string {
+	if value == "" {
+		return value
+	}
+	if len(value) >= 2 && value[:2] == "0x" {
+		return value
+	}
+	return "0x" + value
+}
+
+func uintPtrFromUint64(src *uint64) *uint {
+	if src == nil {
+		return nil
+	}
+	val := uint(*src)
+	return &val
 }

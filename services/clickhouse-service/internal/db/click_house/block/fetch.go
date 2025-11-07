@@ -2,7 +2,6 @@ package block
 
 import (
 	"context"
-	"strconv"
 
 	"clickhouse-service/internal/db/click_house/rowtypes"
 	"lib/models"
@@ -27,37 +26,7 @@ func (r *BlockRepository) FetchBlock(table string, hashBlock string) (models.Blo
 
 	// Конвертируем результат в модель Block
 	row := result[0]
-	block := models.Block{
-		Hash:             row.Hash,
-		Number:           row.Number,
-		ParentHash:       row.ParentHash,
-		Nonce:            row.Nonce,
-		Sha3Uncles:       row.Sha3Uncles,
-		LogsBloom:        row.LogsBloom,
-		TransactionsRoot: row.TransactionsRoot,
-		StateRoot:        row.StateRoot,
-		ReceiptsRoot:     row.ReceiptsRoot,
-		Miner:            row.Miner,
-		Difficulty:       "0x" + row.Difficulty,
-		Size:             row.Size,
-		ExtraData:        row.ExtraData,
-		GasLimit:         row.GasLimit,
-		GasUsed:          row.GasUsed,
-		Timestamp:        uint64(row.Timestamp.Unix()),
-		MixHash:          row.MixHash,
-		Uncles:           row.Uncles,
-	}
-
-	// Конвертируем baseFeePerGas если есть
-	if row.BaseFeePerGas != nil {
-		block.BaseFeePerGas = formatUint64ToHex(*row.BaseFeePerGas)
-	}
-
-	// Создаем транзакции (только хеши)
-	block.Transactions = make([]models.Tx, len(row.Transactions))
-	for i, txHash := range row.Transactions {
-		block.Transactions[i] = models.Tx{Hash: txHash}
-	}
+	block := blockRowToModel(row)
 
 	r.Logger.Debugf("Successfully fetched block %s (number: %d)", block.Hash, block.Number)
 	return block, nil
@@ -83,39 +52,7 @@ func (r *BlockRepository) FetchBlocks(table string, hashBlocks []string) ([]mode
 	// Конвертируем результаты в модели Block
 	blocks := make([]models.Block, len(result))
 	for i, row := range result {
-		block := models.Block{
-			Hash:             row.Hash,
-			Number:           row.Number,
-			ParentHash:       row.ParentHash,
-			Nonce:            row.Nonce,
-			Sha3Uncles:       row.Sha3Uncles,
-			LogsBloom:        row.LogsBloom,
-			TransactionsRoot: row.TransactionsRoot,
-			StateRoot:        row.StateRoot,
-			ReceiptsRoot:     row.ReceiptsRoot,
-			Miner:            row.Miner,
-			Difficulty:       "0x" + row.Difficulty,
-			Size:             row.Size,
-			ExtraData:        row.ExtraData,
-			GasLimit:         row.GasLimit,
-			GasUsed:          row.GasUsed,
-			Timestamp:        uint64(row.Timestamp.Unix()),
-			MixHash:          row.MixHash,
-			Uncles:           row.Uncles,
-		}
-
-		// Конвертируем baseFeePerGas если есть
-		if row.BaseFeePerGas != nil {
-			block.BaseFeePerGas = formatUint64ToHex(*row.BaseFeePerGas)
-		}
-
-		// Создаем транзакции (только хеши)
-		block.Transactions = make([]models.Tx, len(row.Transactions))
-		for j, txHash := range row.Transactions {
-			block.Transactions[j] = models.Tx{Hash: txHash}
-		}
-
-		blocks[i] = block
+		blocks[i] = blockRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d blocks", len(blocks))
@@ -141,35 +78,7 @@ func (r *BlockRepository) FetchBlockByNumber(table string, blockNumber uint64) (
 
 	// Конвертируем результат в модель Block (аналогично FetchBlock)
 	row := result[0]
-	block := models.Block{
-		Hash:             row.Hash,
-		Number:           row.Number,
-		ParentHash:       row.ParentHash,
-		Nonce:            row.Nonce,
-		Sha3Uncles:       row.Sha3Uncles,
-		LogsBloom:        row.LogsBloom,
-		TransactionsRoot: row.TransactionsRoot,
-		StateRoot:        row.StateRoot,
-		ReceiptsRoot:     row.ReceiptsRoot,
-		Miner:            row.Miner,
-		Difficulty:       "0x" + row.Difficulty,
-		Size:             row.Size,
-		ExtraData:        row.ExtraData,
-		GasLimit:         row.GasLimit,
-		GasUsed:          row.GasUsed,
-		Timestamp:        uint64(row.Timestamp.Unix()),
-		MixHash:          row.MixHash,
-		Uncles:           row.Uncles,
-	}
-
-	if row.BaseFeePerGas != nil {
-		block.BaseFeePerGas = formatUint64ToHex(*row.BaseFeePerGas)
-	}
-
-	block.Transactions = make([]models.Tx, len(row.Transactions))
-	for i, txHash := range row.Transactions {
-		block.Transactions[i] = models.Tx{Hash: txHash}
-	}
+	block := blockRowToModel(row)
 
 	r.Logger.Debugf("Successfully fetched block by number %d (hash: %s)", blockNumber, block.Hash)
 	return block, nil
@@ -191,55 +100,65 @@ func (r *BlockRepository) FetchBlocksByRange(table string, fromBlock, toBlock ui
 	// Конвертируем результаты в модели Block (аналогично FetchBlocks)
 	blocks := make([]models.Block, len(result))
 	for i, row := range result {
-		block := models.Block{
-			Hash:             row.Hash,
-			Number:           row.Number,
-			ParentHash:       row.ParentHash,
-			Nonce:            row.Nonce,
-			Sha3Uncles:       row.Sha3Uncles,
-			LogsBloom:        row.LogsBloom,
-			TransactionsRoot: row.TransactionsRoot,
-			StateRoot:        row.StateRoot,
-			ReceiptsRoot:     row.ReceiptsRoot,
-			Miner:            row.Miner,
-			Difficulty:       "0x" + row.Difficulty,
-			Size:             row.Size,
-			ExtraData:        row.ExtraData,
-			GasLimit:         row.GasLimit,
-			GasUsed:          row.GasUsed,
-			Timestamp:        uint64(row.Timestamp.Unix()),
-			MixHash:          row.MixHash,
-			Uncles:           row.Uncles,
-		}
-
-		if row.BaseFeePerGas != nil {
-			block.BaseFeePerGas = formatUint64ToHex(*row.BaseFeePerGas)
-		}
-
-		block.Transactions = make([]models.Tx, len(row.Transactions))
-		for j, txHash := range row.Transactions {
-			block.Transactions[j] = models.Tx{Hash: txHash}
-		}
-
-		blocks[i] = block
+		blocks[i] = blockRowToModel(row)
 	}
 
 	r.Logger.Debugf("Successfully fetched %d blocks in range %d-%d", len(blocks), fromBlock, toBlock)
 	return blocks, nil
 }
 
-// parseHexToUint64Safe безопасно парсит hex строку в uint64
-func parseHexToUint64Safe(hexStr string) uint64 {
-	if hexStr == "" {
-		return 0
+func blockRowToModel(row rowtypes.BlockRow) models.Block {
+	block := models.Block{
+		Hash:             row.Hash,
+		Number:           uint(row.Number),
+		ParentHash:       row.ParentHash,
+		Nonce:            uint(row.Nonce),
+		Sha3Uncles:       row.Sha3Uncles,
+		LogsBloom:        row.LogsBloom,
+		TransactionsRoot: row.TransactionsRoot,
+		StateRoot:        row.StateRoot,
+		ReceiptsRoot:     row.ReceiptsRoot,
+		Miner:            row.Miner,
+		Difficulty:       prefixHex(row.Difficulty),
+		TotalDifficulty:  prefixHex(row.TotalDifficulty),
+		Size:             uint(row.Size),
+		ExtraData:        row.ExtraData,
+		GasLimit:         uint(row.GasLimit),
+		GasUsed:          uint(row.GasUsed),
+		Timestamp:        row.Timestamp,
+		MixHash:          row.MixHash,
+		Transactions:     FetchcopyStringSlice(row.Transactions),
+		Uncles:           FetchcopyStringSlice(row.Uncles),
 	}
-	// Убираем префикс 0x если есть
-	if len(hexStr) > 2 && hexStr[:2] == "0x" {
-		hexStr = hexStr[2:]
+
+	block.BaseFeePerGas = uintPtrFromUint64(row.BaseFeePerGas)
+
+	return block
+}
+
+func prefixHex(value string) string {
+	if value == "" {
+		return value
 	}
-	val, err := strconv.ParseUint(hexStr, 16, 64)
-	if err != nil {
-		return 0
+	if len(value) >= 2 && value[:2] == "0x" {
+		return value
 	}
-	return val
+	return "0x" + value
+}
+
+func FetchcopyStringSlice(src []string) []string {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make([]string, len(src))
+	copy(dst, src)
+	return dst
+}
+
+func uintPtrFromUint64(src *uint64) *uint {
+	if src == nil {
+		return nil
+	}
+	val := uint(*src)
+	return &val
 }
