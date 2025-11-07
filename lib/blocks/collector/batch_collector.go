@@ -1,60 +1,29 @@
 package collector
 
-// import (
-// 	"context"
-// 	"encoding/json"
-// 	"fmt"
-// 	"lib/blocks/metrics"
-// 	"lib/models"
+import (
+	"context"
+	"fmt"
+	"lib/models"
+)
 
-// 	"github.com/ethereum/go-ethereum/rpc"
-// )
+// FetchBlocksBatch загружает блоки по номерам
+func (bc *BlockCollector) FetchBlocksBatch(ctx context.Context, numbers []uint64) (map[models.Hash]models.BlockDTO, error) {
+	if len(numbers) == 0 {
+		return nil, nil
+	}
 
-// // DoBatch выполняет произвольный RPC-батч
-// func (bc *BlockCollector) DoBatch(ctx context.Context, elems []rpc.BatchElem) ([]rpc.BatchElem, error) {
-// 	if len(elems) == 0 {
-// 		return nil, fmt.Errorf("empty batch request list")
-// 	}
-// 	if bc.limiter != nil {
-// 		if err := bc.limiter.Wait(ctx); err != nil {
-// 			return nil, fmt.Errorf("rate limiter wait failed: %w", err)
-// 		}
-// 	}
+	hexNumbers := make([]string, len(numbers))
+	for i, num := range numbers {
+		hexNumbers[i] = fmt.Sprintf("0x%x", num)
+	}
 
-// 	if err := bc.Client().BatchCallContext(ctx, elems); err != nil {
-// 		return nil, fmt.Errorf("batch call failed: %w", err)
-// 	}
+	blockMap, err := bc.Client().BatchBlockWithReceiptByNumber(ctx, hexNumbers)
+	if err != nil {
+		return nil, fmt.Errorf("fetch blocks with receipts batch failed: %w", err)
+	}
 
-// 	return elems, nil
-// }
-
-// // FetchBlocksBatch загружает блоки по номерам
-// func (bc *BlockCollector) FetchBlocksBatch(ctx context.Context, numbers []uint64) ([]models.Block, error) {
-// 	elems := make([]rpc.BatchElem, 0, len(numbers))
-// 	for _, num := range numbers {
-// 		var raw json.RawMessage
-// 		elems = append(elems, rpc.BatchElem{
-// 			Method: "eth_getBlockByNumber",
-// 			Args:   []interface{}{fmt.Sprintf("0x%x", num), true},
-// 			Result: &raw,
-// 		})
-// 	}
-
-// 	if _, err := bc.DoBatch(ctx, elems); err != nil {
-// 		return nil, err
-// 	}
-
-// 	blocks := make([]models.BlockDTO, 0, len(elems))
-// 	for i, e := range elems {
-// 		if e.Error != nil {
-// 			bc.logger.Warnf("block fetch error (number %d): %v", numbers[i], e.Error)
-// 			continue
-// 		}
-// 		raw := *e.Result.(*json.RawMessage)
-// 		blocks = append(blocks, metrics.ParseBlockJSON(raw))
-// 	}
-// 	return blocks, nil
-// }
+	return blockMap, nil
+}
 
 // // FetchReceiptsBatch загружает квитанции по номерам блоков через eth_getBlockReceipts
 // func (bc *BlockCollector) FetchReceiptsBatch(ctx context.Context, numbers []uint64) (map[uint64][]models.Receipt, error) {
